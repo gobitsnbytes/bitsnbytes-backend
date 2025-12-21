@@ -24,6 +24,7 @@ import { supabase } from '@/lib/supabase'
 import type { TaskWithRelations } from '@/lib/schemas'
 import { format } from 'date-fns'
 import { Calendar, Plus, RefreshCw } from 'lucide-react'
+import { ThemeToggle } from '@/components/theme-toggle'
 
 export default function EventBoardPage() {
   const params = useParams()
@@ -107,8 +108,8 @@ export default function EventBoardPage() {
   return (
     <SidebarProvider>
       <AppSidebar />
-      <SidebarInset>
-        <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
+      <SidebarInset className="overflow-x-hidden">
+        <header className="flex h-12 shrink-0 items-center gap-2 border-b px-4">
           <SidebarTrigger className="-ml-1" />
           <Separator orientation="vertical" className="mr-2 h-4" />
           <Breadcrumb>
@@ -132,6 +133,9 @@ export default function EventBoardPage() {
               </BreadcrumbItem>
             </BreadcrumbList>
           </Breadcrumb>
+          <div className="ml-auto">
+            <ThemeToggle />
+          </div>
         </header>
 
         <div className="flex flex-col flex-1">
@@ -170,7 +174,7 @@ export default function EventBoardPage() {
           </div>
 
           {/* Kanban Board */}
-          <div className="flex-1 overflow-hidden bg-slate-50/50">
+          <div className="flex-1 overflow-x-hidden bg-muted/30">
             {tasksLoading ? (
               <div className="flex gap-4 p-4">
                 {[...Array(6)].map((_, i) => (

@@ -43,40 +43,40 @@ export function KanbanColumn({
 
   return (
     <>
-      <Card className="w-[320px] flex flex-col max-h-[calc(100vh-200px)]">
-        <CardHeader className={cn('p-3 border-b', bgColor)}>
+      <Card className="w-[300px] flex flex-col max-h-[calc(100vh-200px)]">
+        <CardHeader className={cn('p-2 border-b', bgColor)}>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <CardTitle className={cn('text-sm font-semibold', color)}>
                 {title}
               </CardTitle>
-              <Badge variant="secondary" className="text-xs">
+              <Badge variant="secondary" className="text-xs h-5 px-1.5 min-w-[1.25rem]">
                 {tasks.length}
               </Badge>
             </div>
             <Button
               variant="ghost"
               size="icon"
-              className="h-7 w-7"
+              className="h-6 w-6"
               onClick={() => setIsAddingTask(true)}
             >
-              <Plus className="h-4 w-4" />
+              <Plus className="h-3.5 w-3.5" />
             </Button>
           </div>
           {/* Status summary */}
-          <div className="flex gap-2 mt-2">
+          <div className="flex gap-1.5 mt-2 overflow-x-auto pb-1 no-scrollbar">
             {pendingCount > 0 && (
-              <Badge variant="outline" className="text-xs bg-slate-50">
+              <Badge variant="outline" className="text-[10px] h-5 px-1.5 whitespace-nowrap bg-slate-50 dark:bg-slate-800/50 dark:text-slate-300 dark:border-slate-700">
                 {pendingCount} pending
               </Badge>
             )}
             {inProgressCount > 0 && (
-              <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700">
+              <Badge variant="outline" className="text-[10px] h-5 px-1.5 whitespace-nowrap bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-400 dark:border-blue-800">
                 {inProgressCount} active
               </Badge>
             )}
             {blockedCount > 0 && (
-              <Badge variant="outline" className="text-xs bg-red-50 text-red-700">
+              <Badge variant="outline" className="text-[10px] h-5 px-1.5 whitespace-nowrap bg-red-50 text-red-700 dark:bg-red-950/50 dark:text-red-400 dark:border-red-800">
                 {blockedCount} blocked
               </Badge>
             )}
@@ -85,9 +85,9 @@ export function KanbanColumn({
 
         <CardContent className="p-0 flex-1 overflow-hidden">
           <ScrollArea className="h-full">
-            <div className="p-3 space-y-3">
+            <div className="p-2 space-y-2">
               {tasks.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground text-sm">
+                <div className="text-center py-8 text-muted-foreground text-xs">
                   No tasks yet
                 </div>
               ) : (

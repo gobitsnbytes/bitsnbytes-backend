@@ -36,6 +36,7 @@ import type { Event } from '@/lib/schemas'
 import { format, isPast, isFuture, isToday } from 'date-fns'
 import { CalendarIcon, Plus, ChevronRight, Clock, CalendarDays, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { ThemeToggle } from '@/components/theme-toggle'
 
 export default function EventsPage() {
   const router = useRouter()
@@ -94,8 +95,8 @@ export default function EventsPage() {
   return (
     <SidebarProvider>
       <AppSidebar />
-      <SidebarInset>
-        <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
+      <SidebarInset className="flex flex-col min-h-screen overflow-x-hidden">
+        <header className="flex h-12 shrink-0 items-center gap-2 border-b px-4">
           <SidebarTrigger className="-ml-1" />
           <Separator orientation="vertical" className="mr-2 h-4" />
           <Breadcrumb>
@@ -109,16 +110,20 @@ export default function EventsPage() {
               </BreadcrumbItem>
             </BreadcrumbList>
           </Breadcrumb>
+          <div className="ml-auto">
+            <ThemeToggle />
+          </div>
         </header>
 
-        <div className="flex-1 p-4 md:p-6 space-y-6">
-          {/* Header */}
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold">Events</h1>
-              <p className="text-muted-foreground">Manage your event execution boards</p>
-            </div>
-            {user?.role === 'organizer' && (
+        <div className="flex-1 overflow-y-auto overflow-x-hidden w-full max-w-full">
+          <div className="p-4 md:p-6 space-y-6 max-w-full">
+            {/* Header */}
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h1 className="text-2xl font-bold">Events</h1>
+                <p className="text-muted-foreground">Manage your event execution boards</p>
+              </div>
+              {user?.role === 'organizer' && (
               <Dialog open={isCreating} onOpenChange={setIsCreating}>
                 <DialogTrigger asChild>
                   <Button>
@@ -184,8 +189,8 @@ export default function EventsPage() {
                   </DialogFooter>
                 </DialogContent>
               </Dialog>
-            )}
-          </div>
+              )}
+            </div>
 
           {/* Upcoming Events */}
           <div className="space-y-4">
@@ -194,13 +199,13 @@ export default function EventsPage() {
               Upcoming Events
             </h2>
             {eventsLoading ? (
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 w-full max-w-full">
                 {[...Array(3)].map((_, i) => (
                   <Skeleton key={i} className="h-32" />
                 ))}
               </div>
             ) : upcomingEvents.length === 0 ? (
-              <Card>
+              <Card className="max-w-full">
                 <CardContent className="flex flex-col items-center justify-center py-8 text-center">
                   <CalendarDays className="h-12 w-12 text-muted-foreground mb-4" />
                   <p className="text-muted-foreground">No upcoming events</p>
@@ -216,7 +221,7 @@ export default function EventsPage() {
                 </CardContent>
               </Card>
             ) : (
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 w-full max-w-full">
                 {upcomingEvents.map((event) => (
                   <EventCard key={event.id} event={event} />
                 ))}
@@ -231,13 +236,14 @@ export default function EventsPage() {
                 <Clock className="h-5 w-5 text-muted-foreground" />
                 Past Events
               </h2>
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 w-full max-w-full">
                 {pastEvents.map((event) => (
                   <EventCard key={event.id} event={event} isPast />
                 ))}
               </div>
             </div>
           )}
+          </div>
         </div>
       </SidebarInset>
     </SidebarProvider>
@@ -258,9 +264,9 @@ function EventCard({ event, isPast = false }: { event: Event; isPast?: boolean }
         )}
       >
         <CardHeader className="pb-2">
-          <div className="flex items-start justify-between">
-            <CardTitle className="text-lg">{event.name}</CardTitle>
-            <ChevronRight className="h-5 w-5 text-muted-foreground" />
+          <div className="flex items-start justify-between gap-2">
+            <CardTitle className="text-lg line-clamp-2">{event.name}</CardTitle>
+            <ChevronRight className="h-5 w-5 text-muted-foreground shrink-0" />
           </div>
         </CardHeader>
         <CardContent>

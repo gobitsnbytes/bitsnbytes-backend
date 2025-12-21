@@ -20,7 +20,7 @@ export function KanbanBoard({ eventId, ownerId, onEditTask, onDeleteTask }: Kanb
   const categories = Object.keys(TASK_CATEGORIES) as TaskCategory[]
 
   return (
-    <ScrollArea className="w-full">
+    <ScrollArea className="w-full max-w-[calc(100vw-var(--sidebar-width)-2rem)]">
       <div className="flex gap-4 p-4 min-w-max">
         {categories.map((category) => {
           const categoryTasks = getTasksByCategory(category)
