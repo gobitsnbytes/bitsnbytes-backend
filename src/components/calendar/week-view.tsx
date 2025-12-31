@@ -22,6 +22,7 @@ import {
   eventOccursOnDay,
   getEventTimesForDay,
   isMultiDayEvent,
+  startOfDay,
   type EventWithPosition,
   type MultiDayEventPosition,
 } from '@/lib/calendar-utils'
@@ -75,6 +76,7 @@ export function WeekView({
   // Drag state
   const [draggedEvent, setDraggedEvent] = useState<CalendarEvent | null>(null)
   const [dragPreview, setDragPreview] = useState<{ day: number; top: number; height: number } | null>(null)
+  const [dragOffset, setDragOffset] = useState<number>(0) // Offset from top of event where user clicked
   
   // Resize state
   const [resizingEvent, setResizingEvent] = useState<CalendarEvent | null>(null)
@@ -127,6 +129,20 @@ export function WeekView({
     e.stopPropagation()
     e.preventDefault()
     setDraggedEvent(event)
+    
+    // Calculate offset from the top of the event where user clicked
+    if (!isMultiDayEvent(event) && gridRef.current) {
+      const eventStart = parseCalendarEventTime(event.start_time)
+      const eventTopMinutes = eventStart.getHours() * 60 + eventStart.getMinutes()
+      const eventTopPx = (eventTopMinutes / 60) * HOUR_HEIGHT
+      
+      const gridRect = gridRef.current.getBoundingClientRect()
+      const clickY = e.clientY - gridRect.top + gridRef.current.scrollTop
+      const offset = clickY - eventTopPx
+      setDragOffset(offset)
+    } else {
+      setDragOffset(0)
+    }
   }, [])
 
   // Handle resize start
@@ -154,34 +170,50 @@ export function WeekView({
 
   // Handle mouse move for all drag operations
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
-    if (!gridRef.current) return
-
-    const gridRect = gridRef.current.getBoundingClientRect()
-    const timeColumnWidth = 60
-    const dayWidth = (gridRect.width - timeColumnWidth) / 7
+    // For all-day event dragging, we can calculate day index from the event target
+    const target = e.currentTarget as HTMLElement
+    const rect = target.getBoundingClientRect()
     
-    const x = e.clientX - gridRect.left - timeColumnWidth
-    const y = e.clientY - gridRect.top + gridRef.current.scrollTop
+    // Calculate day width (account for time column width of 60px)
+    const timeColumnWidth = 60
+    const effectiveWidth = rect.width - timeColumnWidth
+    const dayWidth = effectiveWidth / 7
+    const x = e.clientX - rect.left - timeColumnWidth
+    const dayIndex = Math.max(0, Math.min(6, Math.floor(x / dayWidth)))
 
     // Handle event dragging
     if (draggedEvent) {
-      const dayIndex = Math.max(0, Math.min(6, Math.floor(x / dayWidth)))
-      
       // Check if dragged event is a multi-day/all-day event
       if (isMultiDayEvent(draggedEvent)) {
         // For multi-day events, just show which day it would move to
-        // We'll keep the same duration in days
         setDragPreview({ day: dayIndex, top: 0, height: ALL_DAY_ROW_HEIGHT })
-      } else {
-        const snappedY = snapToGrid(y)
+        return
+      } else if (gridRef.current) {
+        const gridRect = gridRef.current.getBoundingClientRect()
+        const gridX = e.clientX - gridRect.left - timeColumnWidth
+        const gridDayWidth = (gridRect.width - timeColumnWidth) / 7
+        const gridDayIndex = Math.max(0, Math.min(6, Math.floor(gridX / gridDayWidth)))
+        const y = e.clientY - gridRect.top + gridRef.current.scrollTop
+        
+        // Subtract the offset so the preview stays where user grabbed it
+        const adjustedY = y - dragOffset
+        const snappedY = snapToGrid(adjustedY)
+        
         const eventStart = parseCalendarEventTime(draggedEvent.start_time)
         const eventEnd = parseCalendarEventTime(draggedEvent.end_time)
         const duration = eventEnd.getTime() - eventStart.getTime()
         const heightPx = (duration / (1000 * 60 * 60)) * HOUR_HEIGHT
         
-        setDragPreview({ day: dayIndex, top: snappedY, height: heightPx })
+        setDragPreview({ day: gridDayIndex, top: snappedY, height: heightPx })
+        return
       }
     }
+
+    // For operations that need gridRef, return early if not available
+    if (!gridRef.current) return
+    
+    const gridRect = gridRef.current.getBoundingClientRect()
+    const y = e.clientY - gridRect.top + gridRef.current.scrollTop
 
     // Handle resizing
     if (resizingEvent && resizeEdge) {
@@ -229,7 +261,45 @@ export function WeekView({
 
   // Handle mouse up for all drag operations
   const handleMouseUp = useCallback((e: React.MouseEvent) => {
-    if (!gridRef.current) return
+    // Handle all-day event drop (doesn't need gridRef)
+    if (draggedEvent && dragPreview && isMultiDayEvent(draggedEvent)) {
+      const eventStart = parseCalendarEventTime(draggedEvent.start_time)
+      const eventEnd = parseCalendarEventTime(draggedEvent.end_time)
+      
+      // Calculate the day offset
+      const originalStartDay = new Date(eventStart)
+      originalStartDay.setHours(0, 0, 0, 0)
+      const originalDayIndex = days.findIndex(d => isSameDay(d, originalStartDay))
+      const dayOffset = dragPreview.day - originalDayIndex
+      
+      // Move the event by the day offset
+      const newStart = new Date(eventStart)
+      newStart.setDate(newStart.getDate() + dayOffset)
+      const newEnd = new Date(eventEnd)
+      newEnd.setDate(newEnd.getDate() + dayOffset)
+      
+      onEventDrop(draggedEvent, newStart, newEnd)
+      
+      // Reset states
+      setDraggedEvent(null)
+      setDragPreview(null)
+      setDragOffset(0)
+      return
+    }
+    
+    if (!gridRef.current) {
+      // Reset states even if no gridRef
+      setDraggedEvent(null)
+      setDragPreview(null)
+      setDragOffset(0)
+      setResizingEvent(null)
+      setResizeEdge(null)
+      setResizePreview(null)
+      setIsCreating(false)
+      setCreateStart(null)
+      setCreatePreview(null)
+      return
+    }
 
     const gridRect = gridRef.current.getBoundingClientRect()
     const timeColumnWidth = 60
@@ -238,37 +308,20 @@ export function WeekView({
     const x = e.clientX - gridRect.left - timeColumnWidth
     const y = e.clientY - gridRect.top + gridRef.current.scrollTop
 
-    // Complete event drag
+    // Complete event drag (regular events only now since multi-day handled above)
     if (draggedEvent && dragPreview) {
       const eventStart = parseCalendarEventTime(draggedEvent.start_time)
       const eventEnd = parseCalendarEventTime(draggedEvent.end_time)
       
-      // Check if this is a multi-day/all-day event
-      if (isMultiDayEvent(draggedEvent)) {
-        // Calculate the day offset
-        const originalStartDay = new Date(eventStart)
-        originalStartDay.setHours(0, 0, 0, 0)
-        const originalDayIndex = days.findIndex(d => isSameDay(d, originalStartDay))
-        const dayOffset = dragPreview.day - originalDayIndex
-        
-        // Move the event by the day offset
-        const newStart = new Date(eventStart)
-        newStart.setDate(newStart.getDate() + dayOffset)
-        const newEnd = new Date(eventEnd)
-        newEnd.setDate(newEnd.getDate() + dayOffset)
-        
-        onEventDrop(draggedEvent, newStart, newEnd)
-      } else {
-        // Regular time-based event
-        const targetDay = days[dragPreview.day]
-        const targetTime = getTimeFromPosition(dragPreview.top, targetDay)
-        const duration = eventEnd.getTime() - eventStart.getTime()
-        
-        const newStart = targetTime
-        const newEnd = new Date(newStart.getTime() + duration)
-        
-        onEventDrop(draggedEvent, newStart, newEnd)
-      }
+      // Regular time-based event
+      const targetDay = days[dragPreview.day]
+      const targetTime = getTimeFromPosition(dragPreview.top, targetDay)
+      const duration = eventEnd.getTime() - eventStart.getTime()
+      
+      const newStart = targetTime
+      const newEnd = new Date(newStart.getTime() + duration)
+      
+      onEventDrop(draggedEvent, newStart, newEnd)
     }
 
     // Complete resize
@@ -300,6 +353,7 @@ export function WeekView({
     // Reset all states
     setDraggedEvent(null)
     setDragPreview(null)
+    setDragOffset(0)
     setResizingEvent(null)
     setResizeEdge(null)
     setResizePreview(null)
@@ -312,6 +366,7 @@ export function WeekView({
   const handleMouseLeave = useCallback(() => {
     setDraggedEvent(null)
     setDragPreview(null)
+    setDragOffset(0)
     setResizingEvent(null)
     setResizeEdge(null)
     setResizePreview(null)
@@ -353,18 +408,23 @@ export function WeekView({
 
         {/* All-day / Multi-day events section */}
         {allDayRowCount > 0 && (
-          <div className="sticky top-[57px] z-10 flex border-b bg-background">
-            <div className="w-15 shrink-0 border-r flex items-center justify-end pr-2">
+          <div 
+            className="sticky top-[57px] z-20 flex border-b bg-background"
+            onMouseMove={handleMouseMove}
+            onMouseUp={handleMouseUp}
+          >
+            <div className="w-15 shrink-0 border-r flex items-center justify-end pr-2 bg-background">
               <span className="text-[10px] text-muted-foreground">all-day</span>
             </div>
             <div className="flex flex-1 relative" style={{ minHeight: `${allDayRowCount * ALL_DAY_ROW_HEIGHT + 8}px` }}>
-              {/* Day column backgrounds */}
-              {days.map((day) => (
+              {/* Day column backgrounds - also serve as drop targets for all-day events */}
+              {days.map((day, dayIndex) => (
                 <div
                   key={day.toISOString()}
                   className={cn(
                     'flex-1 border-r',
-                    isToday(day) && 'bg-primary/5'
+                    isToday(day) && 'bg-primary/5',
+                    draggedEvent && isMultiDayEvent(draggedEvent) && dragPreview?.day === dayIndex && 'bg-primary/20'
                   )}
                 />
               ))}
@@ -374,6 +434,8 @@ export function WeekView({
                 const leftPercent = (startDayIndex / 7) * 100
                 const widthPercent = ((endDayIndex - startDayIndex + 1) / 7) * 100
                 const calendar = event.calendar_id ? calendarMap[event.calendar_id] : undefined
+                const isEventStart = startDayIndex === 0 || isSameDay(days[startDayIndex], startOfDay(parseCalendarEventTime(event.start_time)))
+                const isEventEnd = endDayIndex === 6 || isSameDay(days[endDayIndex], startOfDay(parseCalendarEventTime(event.end_time)))
                 
                 return (
                   <button
@@ -381,8 +443,12 @@ export function WeekView({
                     onClick={() => onEventClick(event)}
                     onMouseDown={(e) => handleDragStart(event, e)}
                     className={cn(
-                      'absolute rounded-sm text-primary-foreground px-2 py-0.5 text-xs font-medium truncate transition-colors',
-                      'cursor-pointer hover:opacity-90',
+                      'absolute flex items-center text-xs font-medium truncate transition-colors overflow-hidden',
+                      'cursor-grab hover:brightness-110',
+                      isEventStart && isEventEnd && 'rounded-sm',
+                      isEventStart && !isEventEnd && 'rounded-l-sm',
+                      !isEventStart && isEventEnd && 'rounded-r-sm',
+                      !isEventStart && !isEventEnd && 'rounded-none',
                       draggedEvent?.id === event.id && 'opacity-50'
                     )}
                     style={{
@@ -390,14 +456,50 @@ export function WeekView({
                       width: `calc(${widthPercent}% - 4px)`,
                       top: `${row * ALL_DAY_ROW_HEIGHT + 4}px`,
                       height: `${ALL_DAY_ROW_HEIGHT - 4}px`,
-                      backgroundColor: calendar?.color ? `${calendar.color}CC` : 'hsl(var(--primary) / 0.8)',
+                      backgroundColor: calendar?.color ? `${calendar.color}20` : 'hsl(var(--primary) / 0.1)',
+                      color: calendar?.color || 'hsl(var(--foreground))',
                     }}
                     title={event.title}
                   >
-                    {event.title}
+                    {/* Accent bar on left */}
+                    {isEventStart && (
+                      <div 
+                        className="w-1 h-full shrink-0 rounded-l-sm"
+                        style={{ backgroundColor: calendar?.color || 'hsl(var(--primary))' }}
+                      />
+                    )}
+                    <span className="px-2 truncate">{event.title}</span>
                   </button>
                 )
               })}
+              
+              {/* Drag preview for all-day events */}
+              {draggedEvent && isMultiDayEvent(draggedEvent) && dragPreview && (() => {
+                const eventStart = parseCalendarEventTime(draggedEvent.start_time)
+                const eventEnd = parseCalendarEventTime(draggedEvent.end_time)
+                const startDay = new Date(eventStart)
+                startDay.setHours(0, 0, 0, 0)
+                const endDay = new Date(eventEnd)
+                endDay.setHours(0, 0, 0, 0)
+                const eventDurationDays = Math.round((endDay.getTime() - startDay.getTime()) / (1000 * 60 * 60 * 24)) + 1
+                
+                // Calculate where the event would be placed
+                const previewEndDay = Math.min(dragPreview.day + eventDurationDays - 1, 6)
+                const previewStartDay = dragPreview.day
+                const widthDays = previewEndDay - previewStartDay + 1
+                
+                return (
+                  <div
+                    className="absolute rounded-sm bg-primary/30 border-2 border-primary border-dashed pointer-events-none"
+                    style={{
+                      left: `calc(${(previewStartDay / 7) * 100}% + 2px)`,
+                      width: `calc(${(widthDays / 7) * 100}% - 4px)`,
+                      top: '4px',
+                      height: `${ALL_DAY_ROW_HEIGHT - 4}px`,
+                    }}
+                  />
+                )
+              })()}
             </div>
           </div>
         )}
@@ -468,15 +570,34 @@ export function WeekView({
               )}
 
               {/* Drag preview for moving events */}
-              {dragPreview && dragPreview.day === dayIndex && (
-                <div
-                  className="absolute left-1 right-1 rounded-sm border-2 border-primary bg-primary/20 pointer-events-none z-40"
-                  style={{
-                    top: `${dragPreview.top}px`,
-                    height: `${dragPreview.height}px`,
-                  }}
-                />
-              )}
+              {dragPreview && dragPreview.day === dayIndex && draggedEvent && (() => {
+                const draggedCalendar = draggedEvent.calendar_id ? calendarMap[draggedEvent.calendar_id] : undefined
+                const previewColor = draggedCalendar?.color || 'hsl(var(--primary))'
+                return (
+                  <div
+                    className="absolute rounded-sm border-2 border-dashed pointer-events-none z-40 overflow-hidden"
+                    style={{
+                      top: `${dragPreview.top}px`,
+                      height: `${dragPreview.height}px`,
+                      left: '2px',
+                      width: 'calc(100% - 4px)',
+                      borderColor: previewColor,
+                      backgroundColor: `${draggedCalendar?.color || 'hsl(var(--primary))'}20`,
+                    }}
+                  >
+                    {/* Accent bar */}
+                    <div 
+                      className="absolute left-0 top-0 bottom-0 w-1"
+                      style={{ backgroundColor: previewColor }}
+                    />
+                    <div className="pl-2.5 pr-1.5 py-0.5">
+                      <div className="text-xs font-medium truncate" style={{ color: previewColor }}>
+                        {draggedEvent.title}
+                      </div>
+                    </div>
+                  </div>
+                )
+              })()}
 
               {/* Events with overlap handling */}
               {dayEvents.map((event) => {

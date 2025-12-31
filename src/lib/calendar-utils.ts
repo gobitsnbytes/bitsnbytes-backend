@@ -35,8 +35,8 @@ export function getViewDateRange(date: Date, view: CalendarView) {
   switch (view) {
     case 'week':
       return {
-        start: startOfWeek(date, { weekStartsOn: 1 }), // Monday
-        end: endOfWeek(date, { weekStartsOn: 1 }),
+        start: startOfWeek(date, { weekStartsOn: 0 }), // Sunday
+        end: endOfWeek(date, { weekStartsOn: 0 }),
       }
     case 'month':
       return {
@@ -62,7 +62,7 @@ export function navigateDate(date: Date, view: CalendarView, direction: 'prev' |
 }
 
 export function getWeekDays(date: Date) {
-  const start = startOfWeek(date, { weekStartsOn: 1 })
+  const start = startOfWeek(date, { weekStartsOn: 0 })
   return eachDayOfInterval({
     start,
     end: addDays(start, 6),
@@ -72,8 +72,8 @@ export function getWeekDays(date: Date) {
 export function getMonthDays(date: Date) {
   const monthStart = startOfMonth(date)
   const monthEnd = endOfMonth(date)
-  const calendarStart = startOfWeek(monthStart, { weekStartsOn: 1 })
-  const calendarEnd = endOfWeek(monthEnd, { weekStartsOn: 1 })
+  const calendarStart = startOfWeek(monthStart, { weekStartsOn: 0 })
+  const calendarEnd = endOfWeek(monthEnd, { weekStartsOn: 0 })
 
   return eachDayOfInterval({
     start: calendarStart,
@@ -85,15 +85,16 @@ export function getHoursOfDay() {
   const start = new Date()
   start.setHours(0, 0, 0, 0)
   
-  // Return hours 0-23 (24 hours total, ending at midnight)
+  // Return hours 0-23 (24 hours total) plus a midnight marker for scrolling
   const hours = eachHourOfInterval({
     start,
     end: setHours(start, 23),
   })
   
-  // Add the final hour marker at 12 AM (midnight)
+  // Add midnight marker at the end to allow scrolling past 11 PM
   const endMarker = new Date(start)
-  endMarker.setHours(24, 0, 0, 0)
+  endMarker.setDate(endMarker.getDate() + 1)
+  endMarker.setHours(0, 0, 0, 0)
   hours.push(endMarker)
   
   return hours
@@ -110,8 +111,8 @@ export function formatHour(date: Date) {
 export function formatDateHeader(date: Date, view: CalendarView) {
   switch (view) {
     case 'week':
-      const weekStart = startOfWeek(date, { weekStartsOn: 1 })
-      const weekEnd = endOfWeek(date, { weekStartsOn: 1 })
+      const weekStart = startOfWeek(date, { weekStartsOn: 0 })
+      const weekEnd = endOfWeek(date, { weekStartsOn: 0 })
       if (isSameMonth(weekStart, weekEnd)) {
         return `${format(weekStart, 'MMMM d')} - ${format(weekEnd, 'd, yyyy')}`
       }

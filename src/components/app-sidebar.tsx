@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { format } from 'date-fns'
 import { 
   CalendarDots, 
   Plus, 
@@ -9,7 +10,8 @@ import {
   SignOut,
   CaretUpDown,
   Check,
-  Sparkle
+  Sparkle,
+  SquaresFour
 } from '@phosphor-icons/react'
 import {
   Sidebar,
@@ -53,6 +55,17 @@ export function AppSidebar({ onOpenSettings, onCreateEvent }: AppSidebarProps) {
 
   const currentEvent = events?.find(e => e.id === currentEventId)
 
+  const formatEventDates = (event: Event) => {
+    if (!event.start_date && !event.end_date) return null
+    if (event.start_date && event.end_date) {
+      return `${format(new Date(event.start_date), 'MMM d')} - ${format(new Date(event.end_date), 'MMM d, yyyy')}`
+    }
+    if (event.start_date) {
+      return `Starts ${format(new Date(event.start_date), 'MMM d, yyyy')}`
+    }
+    return null
+  }
+
   const handleEventSelect = (event: Event) => {
     setCurrentEventId(event.id)
     if (isMobile) {
@@ -87,7 +100,7 @@ export function AppSidebar({ onOpenSettings, onCreateEvent }: AppSidebarProps) {
                       {currentEvent?.name || 'Select Event'}
                     </span>
                     <span className="truncate text-xs text-muted-foreground">
-                      {currentEvent?.venue || 'No event selected'}
+                      {currentEvent ? (formatEventDates(currentEvent) || currentEvent.venue || 'No dates set') : 'No event selected'}
                     </span>
                   </div>
                   <CaretUpDown className="ml-auto size-4" />
@@ -138,8 +151,6 @@ export function AppSidebar({ onOpenSettings, onCreateEvent }: AppSidebarProps) {
         </SidebarMenu>
       </SidebarHeader>
 
-      <SidebarSeparator />
-
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupLabel>Workspace</SidebarGroupLabel>
@@ -165,6 +176,14 @@ export function AppSidebar({ onOpenSettings, onCreateEvent }: AppSidebarProps) {
 
       <SidebarFooter>
         <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton asChild tooltip="Events">
+              <Link href="/">
+                <SquaresFour className="size-4" />
+                <span>Events</span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
           <SidebarMenuItem>
             <SidebarMenuButton onClick={onOpenSettings} tooltip="Settings">
               <Gear className="size-4" />

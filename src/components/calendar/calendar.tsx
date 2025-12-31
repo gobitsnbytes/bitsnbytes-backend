@@ -144,6 +144,35 @@ export function Calendar({ eventId }: CalendarProps) {
     
     setPopoverOpen(true)
   }, [lastPopoverClose])
+  
+  // Handler for creating all-day events from month view drag-select
+  const handleCreateAllDayEvent = useCallback((startDate: Date, endDate: Date) => {
+    // Prevent reopening immediately after closing
+    const now = Date.now()
+    if (now - lastPopoverClose < 200) return
+    
+    // Set times to all-day (00:00 to 23:59)
+    const start = new Date(startDate)
+    start.setHours(0, 0, 0, 0)
+    
+    const end = new Date(endDate)
+    end.setHours(23, 59, 59, 999)
+    
+    // Set the selected slot date and end date with all-day flag, then open the popover
+    setSelectedEvent(null)
+    setSelectedSlotDate(start)
+    setSelectedEndDate(end)
+    
+    if (containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect()
+      setPopoverPosition({
+        x: rect.width / 2,
+        y: rect.height / 3,
+      })
+    }
+    
+    setPopoverOpen(true)
+  }, [lastPopoverClose])
 
   if (isLoading) {
     return (
@@ -157,7 +186,7 @@ export function Calendar({ eventId }: CalendarProps) {
   }
 
   return (
-    <div ref={containerRef} className="relative flex flex-1 flex-col">
+    <div ref={containerRef} className="relative flex flex-1 flex-col overflow-hidden">
       <CalendarHeader />
       
       {calendarView === 'week' && (
@@ -181,6 +210,7 @@ export function Calendar({ eventId }: CalendarProps) {
           onDayClick={handleDayClick}
           onEventClick={handleEventClick}
           onEventDrop={handleEventDrop}
+          onCreateAllDayEvent={handleCreateAllDayEvent}
         />
       )}
 

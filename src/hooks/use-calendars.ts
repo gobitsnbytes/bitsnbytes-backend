@@ -83,6 +83,25 @@ export function useDeleteCalendar() {
   
   return useMutation({
     mutationFn: async ({ id, eventId }: { id: string; eventId: string }) => {
+      // First, find the Primary calendar for this event
+      const { data: primaryCalendar, error: primaryError } = await supabase
+        .from('calendars')
+        .select('id')
+        .eq('event_id', eventId)
+        .eq('is_default', true)
+        .single()
+
+      if (primaryError) throw primaryError
+
+      // Move all events from the calendar being deleted to the Primary calendar
+      const { error: updateError } = await supabase
+        .from('calendar_events')
+        .update({ calendar_id: primaryCalendar.id } as never)
+        .eq('calendar_id', id)
+
+      if (updateError) throw updateError
+
+      // Now delete the calendar
       const { error } = await supabase
         .from('calendars')
         .delete()

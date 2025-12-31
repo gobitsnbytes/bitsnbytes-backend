@@ -45,7 +45,7 @@ export function CalendarEntry({
         'cursor-pointer select-none',
         !color && 'border-primary/20 bg-primary/10 hover:bg-primary/20',
         color && 'hover:brightness-110',
-        (isDragging || isResizing) && 'opacity-70 shadow-lg z-50 ring-2 ring-primary'
+        (isDragging || isResizing) && 'opacity-70 shadow-lg z-50 ring-2'
       )}
       style={{
         top: `${style.top}px`,
@@ -55,6 +55,9 @@ export function CalendarEntry({
         minHeight: '20px',
         backgroundColor: bgColor,
         borderColor: borderColor,
+        ...(isDragging || isResizing) && { ringColor: color || 'hsl(var(--primary))' },
+        // @ts-expect-error - CSS custom property for ring color
+        '--tw-ring-color': (isDragging || isResizing) ? (color || 'hsl(var(--primary))') : undefined,
       }}
       onClick={(e) => {
         e.stopPropagation()
@@ -72,16 +75,27 @@ export function CalendarEntry({
       {onResizeStart && (
         <div
           data-resize="top"
-          className="absolute top-0 left-0 right-0 h-2 cursor-n-resize opacity-0 group-hover:opacity-100 hover:bg-primary/30 transition-opacity"
+          className="absolute top-0 left-0 right-0 h-2 cursor-n-resize z-10 group/resize-top"
           onMouseDown={(e) => {
             e.stopPropagation()
             onResizeStart(e, 'top')
           }}
-        />
+        >
+          <div 
+            className="absolute inset-x-0 top-0 h-1 rounded-t-sm opacity-0 group-hover/resize-top:opacity-100 transition-opacity"
+            style={{ backgroundColor: color ? `${color}` : 'hsl(var(--primary))' }}
+          />
+        </div>
       )}
 
+      {/* Accent bar on left */}
+      <div 
+        className="absolute left-0 top-0 bottom-0 w-1 rounded-l-sm"
+        style={{ backgroundColor: color || 'hsl(var(--primary))' }}
+      />
+
       {/* Event content */}
-      <div className="px-1.5 py-0.5 h-full">
+      <div className="pl-2.5 pr-1.5 py-0.5 h-full">
         <div 
           className={cn(
             'text-xs font-medium truncate',
@@ -107,12 +121,17 @@ export function CalendarEntry({
       {onResizeStart && (
         <div
           data-resize="bottom"
-          className="absolute bottom-0 left-0 right-0 h-2 cursor-s-resize opacity-0 group-hover:opacity-100 hover:bg-primary/30 transition-opacity"
+          className="absolute bottom-0 left-0 right-0 h-2 cursor-s-resize z-10 group/resize-bottom"
           onMouseDown={(e) => {
             e.stopPropagation()
             onResizeStart(e, 'bottom')
           }}
-        />
+        >
+          <div 
+            className="absolute inset-x-0 bottom-0 h-1 rounded-b-sm opacity-0 group-hover/resize-bottom:opacity-100 transition-opacity"
+            style={{ backgroundColor: color ? `${color}` : 'hsl(var(--primary))' }}
+          />
+        </div>
       )}
     </div>
   )

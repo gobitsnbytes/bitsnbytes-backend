@@ -108,11 +108,48 @@ export function useCreateEvent() {
       
       // Note: Default calendar is automatically created by database trigger
       
+      // If event has start_date and/or end_date, create a calendar event on the Primary calendar
+      if (data && (event.start_date || event.end_date)) {
+        // Wait a bit for the trigger to create the default calendar
+        await new Promise(resolve => setTimeout(resolve, 100))
+        
+        // Get the Primary calendar for this event
+        const { data: calendars } = await supabase
+          .from('calendars')
+          .select('id')
+          .eq('event_id', data.id)
+          .eq('is_default', true)
+          .single()
+        
+        if (calendars) {
+          // Create start and end times for the all-day event
+          const startDate = event.start_date ? new Date(event.start_date) : new Date(event.end_date!)
+          startDate.setHours(0, 0, 0, 0)
+          
+          const endDate = event.end_date ? new Date(event.end_date) : new Date(event.start_date!)
+          endDate.setHours(23, 59, 59, 999)
+          
+          // Create the calendar event
+          await supabase
+            .from('calendar_events')
+            .insert({
+              event_id: data.id,
+              calendar_id: calendars.id,
+              title: event.name,
+              start_time: startDate.toISOString(),
+              end_time: endDate.toISOString(),
+              is_all_day: true,
+              description: `Event: ${event.name}`,
+            })
+        }
+      }
+      
       return data as Event
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['events'] })
       queryClient.invalidateQueries({ queryKey: ['calendars', data.id] })
+      queryClient.invalidateQueries({ queryKey: ['calendar-events', data.id] })
     },
   })
 }

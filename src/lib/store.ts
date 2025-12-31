@@ -37,8 +37,8 @@ export const useAppStore = create<AppState>()(
       calendarDate: new Date(),
       setCalendarDate: (date) => set({ calendarDate: date }),
 
-      // Sidebar state
-      sidebarCollapsed: false,
+      // Sidebar state - collapsed by default for calendar page
+      sidebarCollapsed: true,
       setSidebarCollapsed: (collapsed) => set({ sidebarCollapsed: collapsed }),
 
       // Theme

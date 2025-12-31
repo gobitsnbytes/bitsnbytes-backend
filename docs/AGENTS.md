@@ -177,14 +177,17 @@ This file contains all approved technical and product decisions for the Event Ma
 - Selected calendar saved with entry on create/update
 - Pre-fills existing `calendar_id` when editing
 
-### 24. Calendar Page Sidebar Compression (Added Dec 31, 2025, Updated Jan 1, 2026)
-**Decision**: Allow main app sidebar control on calendar pages
-- Main app sidebar can be expanded/collapsed by user on calendar pages
-- No forced compression - user maintains control
-- **Updated Jan 1, 2026**: Removed forced sidebar collapse
-  - Users can now expand the main sidebar on calendar pages if needed
-  - Sidebar state persists based on user preference
-  - More flexible layout control
+### 24. Sidebar State Persistence (Added Dec 31, 2025, Updated Jan 1, 2026)
+**Decision**: Sidebar collapsed by default with localStorage persistence
+- Sidebar is collapsed by default on first visit
+- State persisted to localStorage via Zustand persist middleware
+- No page-specific compression - same behavior across all pages
+- User's manual expand/collapse choice is remembered across sessions
+- **History**:
+  - Originally forced sidebar collapse on calendar pages only
+  - Updated to allow user control on calendar pages
+  - Final decision: Global default (collapsed) with user preference persistence
+- **Implementation**: Uses `sidebarCollapsed` state in Zustand store with `partialize` to persist
 
 ### 25. Calendar Sidebar Sticky Positioning (Added Jan 1, 2026, Updated Jan 1, 2026)
 **Decision**: Make mini-calendar sidebar fixed with proper height constraints
@@ -266,6 +269,7 @@ This file contains all approved technical and product decisions for the Event Ma
 - **Sticky positioning**: All-day section remains visible at `top-[57px]` (below day names header)
   - All-day label and event bars stay visible when scrolling time grid
   - Uses `z-20` to ensure proper layering above scrolling content
+  - Background explicitly set to `bg-background` for proper visibility
 - **Drag and drop for all-day events**: Multi-day and all-day events can now be dragged between days
   - Click and drag all-day events to move them to different days
   - Maintains event duration (number of days) when moved
@@ -273,6 +277,83 @@ This file contains all approved technical and product decisions for the Event Ma
   - Visual feedback shows which day the event will move to
   - Hover state on all-day events indicates they're draggable
   - Opacity change when dragging to show source event
+
+### 32. Week Start Configuration (Added Jan 1, 2026)
+**Decision**: Change week start from Monday to Sunday
+- All calendar views now start weeks on Sunday (weekStartsOn: 0)
+- Applied to:
+  - `getViewDateRange()` function
+  - `getWeekDays()` function
+  - `getMonthDays()` function
+  - `formatDateHeader()` function
+  - Month view week day headers array
+- Matches common US calendar convention
+- Consistent across week and month views
+
+### 33. Calendar Sidebar Theme Consistency (Added Jan 1, 2026)
+**Decision**: Match calendar sidebar background to main sidebar
+- Calendar sidebar uses `bg-sidebar` class
+- Mini calendar component uses `bg-sidebar` for consistency
+- Ensures visual continuity between main app sidebar and calendar-specific sidebar
+- Proper theme adherence using shadcn sidebar tokens
+
+### 34. Multi-Day Event Creation via Drag-Select (Added Jan 1, 2026)
+**Decision**: Enable drag-select in month view to create multi-day all-day events
+- **Month view drag-select feature**:
+  - Click and hold on empty space in month view
+  - Drag across multiple days to select date range
+  - Visual feedback: selected days highlighted with `bg-primary/10` and ring
+  - Release mouse to open entry popover with all-day event pre-configured
+  - Works independently from event dragging (event drag takes precedence)
+- **Implementation details**:
+  - State tracking: `isSelecting`, `selectionStart`, `selectionEnd`
+  - Handlers: `handleSelectionStart()`, `handleSelectionMove()`, `isDaySelected()`
+  - Selection range normalized (start always before end)
+  - Times automatically set to 00:00 - 23:59 for all-day events
+  - Opens entry popover centered in viewport
+- **UX improvements**:
+  - Prevents accidental selection when clicking events
+  - Clear visual distinction between selection and hover states
+  - Seamless integration with existing event creation flow
+
+### 35. Automatic Event Calendar Entry Creation (Added Jan 1, 2026)
+**Decision**: Auto-create matching calendar entry when event has dates
+- When creating an event with `start_date` and/or `end_date`:
+  - Automatically creates a calendar event on the Primary calendar
+  - Calendar event spans from start_date (or end_date if no start) to end_date (or start_date if no end)
+  - Event is marked as all-day (`is_all_day: true`)
+  - Times set to 00:00 - 23:59 to span full day(s)
+  - Title matches the event name
+  - Description: "Event: [event name]"
+- **Implementation**:
+  - Logic added to `useCreateEvent()` mutation hook
+  - Waits 100ms after event creation for database trigger to create Primary calendar
+  - Queries for Primary calendar (`is_default: true`)
+  - Creates calendar event with proper all-day configuration
+  - Invalidates calendar-events query cache on success
+- **Benefits**:
+  - Provides immediate visual representation of event duration on calendar
+  - Users see event dates reflected in calendar view automatically
+  - Reduces manual entry creation for event organizers
+  - Consistent with event-level metadata
+
+### 36. Events Homepage Menu Item (Added Jan 1, 2026)
+**Decision**: Add "Events" navigation link to sidebar footer
+- New menu item labeled "Events" added to sidebar footer above Settings
+- Links to events homepage at root path (`/`)
+- Uses SquaresFour icon from Phosphor Icons
+- Allows users to navigate back to events listing from any event workspace
+- Positioned in footer section for easy access alongside Settings and Sign out
+- Maintains consistent navigation pattern with other workspace tools
+
+### 37. Sidebar Event Dates Display (Added Jan 1, 2026)
+**Decision**: Show event dates instead of venue in sidebar header
+- Event dropdown header displays formatted event dates as secondary text
+- Uses same format as events homepage: "MMM d - MMM d, yyyy" or "Starts MMM d, yyyy"
+- Fallback hierarchy: event dates → venue → "No dates set" → "No event selected"
+- Provides more relevant contextual information at a glance
+- Implemented using `formatEventDates()` utility function from date-fns
+- Applies to both collapsed (icon tooltip) and expanded sidebar states
 
 ## File Management Rules
 
