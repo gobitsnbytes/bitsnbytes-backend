@@ -186,6 +186,105 @@ export type Database = {
         }
         Relationships: []
       }
+      task_columns: {
+        Row: {
+          created_at: string
+          event_id: string
+          id: string
+          name: string
+          order_index: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          event_id: string
+          id?: string
+          name: string
+          order_index?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          event_id?: string
+          id?: string
+          name?: string
+          order_index?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_columns_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tasks: {
+        Row: {
+          column_id: string
+          created_at: string
+          description: string | null
+          due_at: string | null
+          event_id: string
+          id: string
+          order_index: number
+          owner_id: string | null
+          priority: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          column_id: string
+          created_at?: string
+          description?: string | null
+          due_at?: string | null
+          event_id: string
+          id?: string
+          order_index?: number
+          owner_id?: string | null
+          priority?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          column_id?: string
+          created_at?: string
+          description?: string | null
+          due_at?: string | null
+          event_id?: string
+          id?: string
+          order_index?: number
+          owner_id?: string | null
+          priority?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tasks_column_id_fkey"
+            columns: ["column_id"]
+            isOneToOne: false
+            referencedRelation: "task_columns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "organizers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_settings: {
         Row: {
           created_at: string
@@ -360,23 +459,23 @@ export const Constants = {
   },
 } as const
 
-// Common type aliases for easier usage
-export type Event = Tables<"events">
-export type EventInsert = TablesInsert<"events">
-export type EventUpdate = TablesUpdate<"events">
+// Convenience type aliases for common database types
+export type Calendar = Tables<'calendars'>
+export type CalendarInsert = TablesInsert<'calendars'>
+export type CalendarUpdate = TablesUpdate<'calendars'>
 
-export type Organizer = Tables<"organizers">
-export type OrganizerInsert = TablesInsert<"organizers">
-export type OrganizerUpdate = TablesUpdate<"organizers">
+export type CalendarEvent = Tables<'calendar_events'>
+export type CalendarEventInsert = TablesInsert<'calendar_events'>
+export type CalendarEventUpdate = TablesUpdate<'calendar_events'>
 
-export type CalendarEvent = Tables<"calendar_events">
-export type CalendarEventInsert = TablesInsert<"calendar_events">
-export type CalendarEventUpdate = TablesUpdate<"calendar_events">
+export type Event = Tables<'events'>
+export type EventInsert = TablesInsert<'events'>
+export type EventUpdate = TablesUpdate<'events'>
 
-export type Calendar = Tables<"calendars">
-export type CalendarInsert = TablesInsert<"calendars">
-export type CalendarUpdate = TablesUpdate<"calendars">
+export type Organizer = Tables<'organizers'>
+export type OrganizerInsert = TablesInsert<'organizers'>
+export type OrganizerUpdate = TablesUpdate<'organizers'>
 
-export type UserSettings = Tables<"user_settings">
-export type UserSettingsInsert = TablesInsert<"user_settings">
-export type UserSettingsUpdate = TablesUpdate<"user_settings">
+export type UserSettings = Tables<'user_settings'>
+export type UserSettingsInsert = TablesInsert<'user_settings'>
+export type UserSettingsUpdate = TablesUpdate<'user_settings'>

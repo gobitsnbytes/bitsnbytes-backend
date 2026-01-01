@@ -1,6 +1,6 @@
 # AGENTS.md - Technical and Product Decisions
 
-**Last Updated**: December 31, 2025
+**Last Updated**: January 1, 2026
 
 This file contains all approved technical and product decisions for the Event Management MVP.
 
@@ -502,3 +502,122 @@ Allows assigning calendar entries to specific calendars for color-coding.
 - Calculates CSS positioning for overlapped events
 - Returns top, height, left, and width values
 - Handles percentage-based column widths
+
+### 38. Workspace Navigation Menu (Added Jan 1, 2026)
+**Decision**: Add core workspace navigation items to main sidebar
+- **Menu items in 'Workspace' group**:
+  - **Dashboard** (House icon) → `/events/{eventId}/dashboard`
+  - **Tasks** (CheckCircle icon) → `/events/{eventId}/tasks`
+  - **Team** (UsersThree icon) → `/events/{eventId}/team`
+  - **Calendar** (CalendarDots icon) → `/events/{eventId}/calendar`
+- Icons sourced from Phosphor Icons library (@phosphor-icons/react)
+- All menu items disabled when no event is selected
+- Items ordered: Dashboard, Tasks, Team, Calendar
+- Each page has its own route and layout:
+  - Dashboard: Empty page at `/src/app/(app)/events/[eventId]/dashboard/page.tsx`
+  - Tasks: Empty page at `/src/app/(app)/events/[eventId]/tasks/page.tsx`
+  - Team: Empty page at `/src/app/(app)/events/[eventId]/team/page.tsx`
+  - Calendar: Full calendar view at `/src/app/(app)/events/[eventId]/calendar/page.tsx`
+- All pages inherit the AppShell layout (header + sidebar)
+- `/events/{eventId}` redirects to `/events/{eventId}/calendar` for seamless navigation
+- Full-width sidebar navigation with responsive icon display
+- Consistent styling with existing workspace tools
+- **Updated Jan 1, 2026**: Fixed active state behavior
+  - Uses `usePathname()` to detect current route for proper active highlighting
+  - `isActive` checks actual pathname match instead of just event selection
+  - Conditional rendering: renders `Link` when event exists, plain content when disabled
+  - `asChild` prop only true when event exists to prevent hydration issues
+  - Proper disabled state without invalid hash hrefs
+- **Updated Jan 1, 2026**: Calendar route restructure
+  - Calendar page moved from `/events/{eventId}/page.tsx` to `/events/{eventId}/calendar/page.tsx`
+  - Original `/events/{eventId}` route now redirects to calendar for backward compatibility
+  - Dashboard, Tasks, and Team pages created as empty placeholder pages
+  - All pages have proper header and sidebar via AppShell layout
+
+### 39. Task Management System (Added Jan 1, 2026, Updated Jan 1, 2026)
+**Decision**: Kanban board for task organization per event
+- **Database schema**:
+  - `task_columns` table: Fixed 3 columns per event (not customizable)
+    - Fields: id, event_id, name, order_index, created_at, updated_at
+    - Default columns: "Not Started" (0), "In Progress" (1), "Done" (2)
+    - Unique constraint on (event_id, order_index)
+    - Auto-created via database trigger when event is created
+  - `tasks` table: Individual tasks within columns
+    - Fields: id, event_id, column_id, title, description, owner_id, priority (low/high), due_at, order_index, created_at, updated_at
+    - Foreign keys to events, task_columns, and organizers (owner)
+    - Organizer-based RLS policies for access control
+- **UI Components**:
+  - shadcn kanban board components from https://shadcn-kanban-board.com/r/kanban.json
+  - Custom `KanbanBoard` wrapper component at `src/components/kanban-board.tsx`
+  - Drag-and-drop task reordering within columns
+  - Inline task editing (click to edit title)
+  - Add/delete tasks (creation only from "Not Started" column)
+  - Task count badges on column headers
+  - Confirmation dialogs for destructive actions
+  - Empty state messages per column:
+    - "Not Started": "No tasks yet. Create your first task to get started!"
+    - "In Progress": "Move tasks from Not Started to begin working on them."
+    - "Done": "Complete tasks from In Progress to see them here."
+- **Task Flow Rules** (Updated Jan 1, 2026):
+  - Tasks can only be created in "Not Started" column
+  - Tasks can only be moved to "Done" from "In Progress" (enforced workflow)
+  - Tasks can be moved between "Not Started" and "In Progress" freely
+  - Drag-and-drop automatically validates allowed transitions
+- **Features**:
+  - Full theme adherence using shadcn design tokens
+  - Optimistic UI updates with React Query
+  - Task creation with default "low" priority
+  - Fractional order_index for flexible ordering (averages between tasks)
+  - Horizontal scroll for multiple columns with fixed header
+  - Fixed 320px column width (w-80)
+  - Header remains fixed during horizontal scroll
+- **Removed functionality** (Jan 1, 2026):
+  - Custom column creation/deletion removed
+  - Column management UI removed (3 fixed columns only)
+  - Columns cannot be renamed or reordered by users
+- **React Query hooks** in `src/hooks/use-tasks.ts`:
+  - `useTaskColumns()` - Fetch columns for event
+  - `useTasks()` - Fetch all tasks for event
+  - `useCreateTask()`, `useUpdateTask()`, `useDeleteTask()`
+  - Column management hooks removed (no longer needed)
+- **Tasks page** at `/events/{eventId}/tasks`:
+  - Full-page kanban board layout
+  - Empty state shows loading message
+  - All operations happen within kanban board
+  - No separate task detail views in MVP
+
+### 40. Database Triggers for Tasks (Added Jan 1, 2026)
+**Decision**: Automatic default column creation
+- **Trigger function**: `create_default_task_columns_for_event()`
+  - Fires AFTER INSERT on events table
+  - Creates 3 default columns: "Not Started" (0), "In Progress" (1), "Done" (2)
+  - Ensures every event always has task management capability
+- **Migration**: Applied to existing events during migration
+  - Backfilled default columns for all pre-existing events
+  - Handles cases where columns already exist (no duplicates)
+
+### 41. Event Layout and CurrentEventId Management (Added Jan 1, 2026)
+**Decision**: Shared layout for all event pages to manage currentEventId
+- **Issue**: Sidebar workspace menu items (Dashboard, Tasks, Team, Calendar) were grayed out on event pages
+- **Root cause**: Only calendar page set `currentEventId` in Zustand store; other event pages didn't
+- **Fix**: Created shared layout at `/src/app/(app)/events/[eventId]/layout.tsx`
+  - Layout extracts `eventId` from URL params using `useParams()`
+  - Sets `currentEventId` in Zustand store via `useEffect` on mount
+  - All child pages (calendar, dashboard, tasks, team) inherit this behavior
+  - Removed duplicate `setCurrentEventId` logic from calendar page
+- **Benefit**: Single source of truth for event context, consistent sidebar state across all workspace pages
+
+### 42. AppShell Header Responsive Width (Added Jan 1, 2026)
+**Decision**: Header dynamically adjusts left position based on sidebar state
+- **Issue**: Fixed header didn't resize when sidebar collapsed/expanded
+- **Root cause**: Header used static `var(--sidebar-width)` for left position
+- **Fix**: Created `AppHeader` component inside `AppShell` that:
+  - Uses `useSidebar()` hook to get current sidebar state
+  - Dynamically sets `left` style based on collapsed state:
+    - Collapsed: `var(--sidebar-width-icon)` (3rem)
+    - Expanded: `var(--sidebar-width)` (16rem)
+  - Maintains smooth transition animation via `transition-[left]` class
+- **Implementation**: Header is now a separate component inside SidebarProvider to access sidebar context
+
+
+

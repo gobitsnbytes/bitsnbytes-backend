@@ -1,6 +1,6 @@
 'use client'
 
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { format } from 'date-fns'
 import { 
@@ -11,7 +11,10 @@ import {
   CaretUpDown,
   Check,
   Sparkle,
-  SquaresFour
+  SquaresFour,
+  House,
+  CheckCircle,
+  UsersThree
 } from '@phosphor-icons/react'
 import {
   Sidebar,
@@ -48,6 +51,7 @@ interface AppSidebarProps {
 
 export function AppSidebar({ onOpenSettings, onCreateEvent }: AppSidebarProps) {
   const router = useRouter()
+  const pathname = usePathname()
   const { data: events, isLoading } = useEvents()
   const currentEventId = useAppStore((state) => state.currentEventId)
   const setCurrentEventId = useAppStore((state) => state.setCurrentEventId)
@@ -157,17 +161,96 @@ export function AppSidebar({ onOpenSettings, onCreateEvent }: AppSidebarProps) {
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
-                <SidebarMenuButton
-                  asChild
-                  isActive={!!currentEventId}
-                  tooltip="Calendar"
-                  disabled={!currentEventId}
-                >
-                  <Link href={currentEventId ? `/events/${currentEventId}` : '#'}>
+                {currentEventId ? (
+                  <SidebarMenuButton
+                    asChild
+                    isActive={pathname?.includes('/dashboard')}
+                    tooltip="Dashboard"
+                  >
+                    <Link href={`/events/${currentEventId}/dashboard`}>
+                      <House className="size-4" />
+                      <span>Dashboard</span>
+                    </Link>
+                  </SidebarMenuButton>
+                ) : (
+                  <SidebarMenuButton
+                    disabled
+                    tooltip="Dashboard"
+                    className="opacity-50 cursor-not-allowed"
+                  >
+                    <House className="size-4" />
+                    <span>Dashboard</span>
+                  </SidebarMenuButton>
+                )}
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                {currentEventId ? (
+                  <SidebarMenuButton
+                    asChild
+                    isActive={pathname?.includes('/tasks')}
+                    tooltip="Tasks"
+                  >
+                    <Link href={`/events/${currentEventId}/tasks`}>
+                      <CheckCircle className="size-4" />
+                      <span>Tasks</span>
+                    </Link>
+                  </SidebarMenuButton>
+                ) : (
+                  <SidebarMenuButton
+                    disabled
+                    tooltip="Tasks"
+                    className="opacity-50 cursor-not-allowed"
+                  >
+                    <CheckCircle className="size-4" />
+                    <span>Tasks</span>
+                  </SidebarMenuButton>
+                )}
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                {currentEventId ? (
+                  <SidebarMenuButton
+                    asChild
+                    isActive={pathname?.includes('/team')}
+                    tooltip="Team"
+                  >
+                    <Link href={`/events/${currentEventId}/team`}>
+                      <UsersThree className="size-4" />
+                      <span>Team</span>
+                    </Link>
+                  </SidebarMenuButton>
+                ) : (
+                  <SidebarMenuButton
+                    disabled
+                    tooltip="Team"
+                    className="opacity-50 cursor-not-allowed"
+                  >
+                    <UsersThree className="size-4" />
+                    <span>Team</span>
+                  </SidebarMenuButton>
+                )}
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                {currentEventId ? (
+                  <SidebarMenuButton
+                    asChild
+                    isActive={pathname?.includes('/calendar')}
+                    tooltip="Calendar"
+                  >
+                    <Link href={`/events/${currentEventId}/calendar`}>
+                      <CalendarDots className="size-4" />
+                      <span>Calendar</span>
+                    </Link>
+                  </SidebarMenuButton>
+                ) : (
+                  <SidebarMenuButton
+                    disabled
+                    tooltip="Calendar"
+                    className="opacity-50 cursor-not-allowed"
+                  >
                     <CalendarDots className="size-4" />
                     <span>Calendar</span>
-                  </Link>
-                </SidebarMenuButton>
+                  </SidebarMenuButton>
+                )}
               </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>
@@ -185,13 +268,21 @@ export function AppSidebar({ onOpenSettings, onCreateEvent }: AppSidebarProps) {
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>
-            <SidebarMenuButton onClick={onOpenSettings} tooltip="Settings">
+            <SidebarMenuButton 
+              onClick={onOpenSettings}
+              tooltip="Settings"
+              className="cursor-pointer"
+            >
               <Gear className="size-4" />
               <span>Settings</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>
-            <SidebarMenuButton onClick={handleSignOut} tooltip="Sign out">
+            <SidebarMenuButton 
+              onClick={handleSignOut}
+              tooltip="Sign out"
+              className="cursor-pointer"
+            >
               <SignOut className="size-4" />
               <span>Sign out</span>
             </SidebarMenuButton>
