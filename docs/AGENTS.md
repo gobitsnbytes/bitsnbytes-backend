@@ -1,6 +1,6 @@
 # AGENTS.md - Technical and Product Decisions
 
-**Last Updated**: January 1, 2026
+**Last Updated**: January 1, 2026 (Teams & Members added)
 
 This file contains all approved technical and product decisions for the Event Management MVP.
 
@@ -621,3 +621,138 @@ Allows assigning calendar entries to specific calendars for color-coding.
 
 
 
+
+### 43. Teams and Members System (Added Jan 1, 2026)
+**Decision**: Add collaboration layer with teams and invites
+- **Event-level roles**: Owner, Admin, Member
+  - Owner: Event creator, full control, cannot transfer ownership, cannot leave
+  - Admin: Manage members/teams/invites, can leave voluntarily
+  - Member: View only assigned teams, can leave voluntarily, cannot leave teams unless removed by Owner/Admin
+- **Teams structure**:
+  - Teams are organizational only (no permissions)
+  - Used for grouping and filtering members
+  - Members can belong to multiple teams
+  - Unlimited team size
+  - Unassigned members allowed
+- **Permission rules**:
+  - Owner and Admins can create/edit/delete teams
+  - Owner and Admins can assign members to teams
+  - Members see only their assigned teams
+  - Owner and Admins see all teams
+- **UI Layout**: Two-column layout on Team page
+  - Left: Team list (320px fixed width)
+  - Right: Selected team details (flexible)
+  - Modal-based member assignment (no drag-drop)
+
+### 44. Invite System Design (Added Jan 1, 2026)
+**Decision**: Dual invite mechanism with email and shareable links
+- **Email invites**:
+  - Admins/Owners enter email address
+  - Supabase Auth `inviteUserByEmail()` sends magic link
+  - Invite scoped to single event
+  - Always adds as "Member" role
+  - 48-hour expiry
+- **Link invites**:
+  - Admins/Owners generate shareable links
+  - Each link has UUID token and 48-hour expiry
+  - Multiple active links allowed per event
+  - Anyone with link can join as "Member"
+  - Tokens stored in `event_invites` table
+- **Token security**:
+  - UUID v4 for tokens (not short codes)
+  - Server-side expiry validation
+  - Tokens marked as used on acceptance
+  - No token reuse after expiry
+- **Email provider**: Supabase default SMTP (no custom provider)
+
+### 45. Event Deletion and Ownership Rules (Added Jan 1, 2026)
+**Decision**: Hard delete with specific cleanup rules
+- **Event deletion**: Hard delete (no soft delete or retention)
+  - Cascades to all event_members, event_teams, team_members
+  - Calendar events and tasks also deleted via existing foreign keys
+- **Team deletion**: Members remain in event, removed from team only
+  - Calendar events assigned to team move to Primary calendar
+  - Tasks assigned to team move to Primary calendar (if team-scoped tasks added later)
+- **Ownership transfer**: Not supported in MVP
+  - Owner role fixed for event lifetime
+  - Owner cannot be removed or leave event
+- **Member removal**: 
+  - Members can leave event voluntarily (removes from all teams)
+  - Admins can leave event voluntarily
+  - Admins/Owner can remove other members
+  - Members cannot leave teams unless Owner/Admin removes them
+
+### 46. Team Visibility and Access Control (Added Jan 1, 2026)
+**Decision**: Role-based team visibility with RLS enforcement
+- **Visibility rules**:
+  - Members see only teams they are assigned to
+  - Owner and Admins see all teams in event
+  - Team list filtered at application layer (React Query)
+  - RLS policies enforce event-level access
+- **Member list visibility**: All event members can see full member list
+  - Required for displaying team members
+  - Role badges shown on member cards
+  - Owner indicated with special badge/icon
+- **Data consistency**: Last-write-wins for concurrent edits
+  - No optimistic locking or conflict resolution
+  - Acceptable for MVP scale (small teams, infrequent conflicts)
+  - React Query cache invalidation on mutations
+
+### 47. Teams Database Schema (Added Jan 1, 2026)
+**Decision**: Three new tables with RLS policies
+- **`event_members` table**: Event membership with roles
+  - Columns: id, event_id, user_id, role, joined_at, created_at, updated_at
+  - Unique constraint on (event_id, user_id)
+  - RLS: Members can view, Owner/Admin can insert/update/delete
+  - Trigger: Auto-create Owner member on event creation
+- **`event_teams` table**: Teams within events
+  - Columns: id, event_id, name, description, created_at, updated_at
+  - Name max 100 chars, description max 500 chars
+  - RLS: Members can view, Owner/Admin can create/update/delete
+- **`team_members` table**: Junction table for member-to-team assignments
+  - Columns: id, team_id, member_id, assigned_at
+  - Unique constraint on (team_id, member_id)
+  - Cascading deletes on team or member deletion
+  - RLS: Members can view, Owner/Admin can insert/delete
+- **`event_invites` table**: Invite metadata for email and link invites
+  - Columns: id, event_id, invite_type, token, email, invited_by, expires_at, used_at, created_at
+  - Unique index on token (UUID v4)
+  - Constraint: email required for email invites
+  - RLS: Public can view valid invites, Owner/Admin can create/update/delete
+  - No automatic cleanup (manual or scheduled for production)
+
+### 48. Team Page Navigation (Added Jan 1, 2026)
+**Decision**: Add Team menu item to workspace navigation
+- **Route**: `/events/[eventId]/team`
+- **Sidebar position**: Between Tasks and Calendar in Workspace group
+- **Icon**: UsersThree from Phosphor Icons
+- **Behavior**: Same as other workspace items (disabled when no event selected)
+- **Layout**: Inherits AppShell (header + sidebar), full-width content area
+- **Active state**: Uses pathname matching like other workspace pages
+
+### 49. Invite Page Route (Added Jan 1, 2026)
+**Decision**: Standalone public invite acceptance page
+- **Route**: `/invite/[token]`
+- **Layout**: Centered card, no sidebar (public page)
+- **States**:
+  - Valid token: Show event name/icon, "Accept Invite" button → Supabase Auth
+  - Expired/invalid: Error message, "Go to Events" button
+  - Already member: Info message, "Go to Event" button
+- **Auth flow**: After Supabase authentication, add to event_members and redirect to event
+- **Token validation**: Server-side check for expiry, usage, and event existence
+
+### 50. shadcn Theme Adherence for Teams (Added Jan 1, 2026)
+**Decision**: Follow pre-installed shadcn theme
+- Use existing theme configuration (no custom theme selection)
+- All Team page components use shadcn primitives:
+  - Dialog for modals (create/edit team, assign members)
+  - AlertDialog for confirmations (delete team, remove member)
+  - Input, Textarea for forms
+  - Checkbox for multi-select
+  - Badge for role/count indicators
+  - Avatar for member display
+  - Tabs for invite dialog (email vs link)
+  - Card for team items
+- **Color tokens**: Use CSS variables (--primary, --secondary, --destructive, etc.)
+- **No custom colors**: All UI uses theme-defined colors
+- **Consistent spacing**: Follow shadcn spacing scale (p-4, gap-2, etc.)
