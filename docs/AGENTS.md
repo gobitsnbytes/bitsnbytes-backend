@@ -1,6 +1,6 @@
 # AGENTS.md - Technical and Product Decisions
 
-**Last Updated**: January 1, 2026 (Teams & Members added)
+**Last Updated**: January 1, 2026 (Code Review & Cleanup)
 
 This file contains all approved technical and product decisions for the Event Management MVP.
 
@@ -756,3 +756,119 @@ Allows assigning calendar entries to specific calendars for color-coding.
 - **Color tokens**: Use CSS variables (--primary, --secondary, --destructive, etc.)
 - **No custom colors**: All UI uses theme-defined colors
 - **Consistent spacing**: Follow shadcn spacing scale (p-4, gap-2, etc.)
+
+### 51. Teams Implementation Details (Added Jan 1, 2026)
+**Decision**: Full implementation of Teams & Members system
+
+#### Database Migration
+- Migration file: `20260101000007_create_teams_system.sql`
+- Creates 4 tables: event_members, event_teams, team_members, event_invites
+- All tables have RLS enabled with appropriate policies
+- Trigger `create_owner_member` auto-creates owner membership on event creation
+- Backfills existing events with owner membership records
+
+#### React Query Hooks (`src/hooks/use-teams.ts`)
+- `useCurrentMember(eventId)` - Get current user's membership for permission checks
+- `useEventMembers(eventId)` - Get all event members with user info
+- `useUpdateMemberRole()` - Promote/demote members (Admin/Member only)
+- `useRemoveMember()` - Remove member from event
+- `useLeaveEvent()` - Current user leaves event voluntarily
+- `useEventTeams(eventId)` - Get all teams (for Owner/Admin)
+- `useMyTeams(eventId)` - Get only assigned teams (for Member role)
+- `useTeamMembers(teamId)` - Get members of specific team
+- `useCreateTeam()` - Create new team
+- `useUpdateTeam()` - Update team name/description
+- `useDeleteTeam()` - Delete team
+- `useAssignMembers()` - Batch assign/unassign members to team
+- `useRemoveFromTeam()` - Remove single member from team
+- `useEventInvites(eventId)` - Get all invites for event
+- `useCreateEmailInvite()` - Create email-type invite
+- `useCreateLinkInvite()` - Create shareable link invite
+- `useRevokeInvite()` - Delete/revoke invite
+- `useValidateInvite(token)` - Validate invite token for acceptance page
+- `useAcceptInvite()` - Accept invite and join event
+
+#### Team Page Components (`src/components/teams/`)
+- `CreateTeamDialog` - Modal for creating new teams
+- `EditTeamDialog` - Modal for editing team name/description
+- `AssignMembersDialog` - Multi-select modal for team member assignment
+- `InviteMemberDialog` - Tabbed dialog for email/link invites
+
+#### Page Routes
+- `/events/[eventId]/team` - Main team management page with two-column layout
+- `/invite/[token]` - Public invite acceptance page
+
+#### Permission Handling
+- `canManage` flag derived from `currentMember?.role === 'owner' || 'admin'`
+- Owner/Admin: See all teams, can create/edit/delete, can manage members
+- Member: See only assigned teams, read-only view
+- Conditional rendering based on `canManage` throughout UI
+
+#### Role Badges
+- Owner: Primary badge with Crown icon
+- Admin: Secondary badge with Shield icon
+- Member: Outline badge with User icon
+
+#### Invite System
+- Email invites: Create record with 48-hour expiry, stored in event_invites
+- Link invites: Generate UUID token, shareable URL at `/invite/[token]`
+- Both types validated before acceptance
+- Used invites marked with `used_at` timestamp
+- Active invites display in Link Invite tab with copy/revoke actions
+
+### 52. TypeScript Types for Teams (Added Jan 1, 2026)
+**Decision**: Added new types to database.types.ts
+- `EventMember` / `EventMemberInsert` / `EventMemberUpdate`
+- `EventTeam` / `EventTeamInsert` / `EventTeamUpdate`
+- `TeamMember` / `TeamMemberInsert` / `TeamMemberUpdate`
+- `EventInvite` / `EventInviteInsert` / `EventInviteUpdate`
+- Extended types: `EventMemberWithUser`, `EventTeamWithMembers`
+- Role type literals: `'owner' | 'admin' | 'member'`
+- Invite type literals: `'email' | 'link'`
+
+### 53. Code Review and Cleanup (Added Jan 1, 2026)
+**Decision**: Comprehensive code review performed with bug fixes
+- **Team Page Buttons**: Confirmed create team and invite member buttons are properly implemented in TeamList component (lines 122-129)
+  - Both buttons conditionally rendered based on `canManage` flag
+  - New Team button triggers CreateTeamDialog
+  - Invite button triggers InviteMemberDialog
+  - Buttons use proper spacing and icon alignment
+- **Debug Console Cleanup**: Removed development console.log statements from entry-popover.tsx
+  - Removed form submission values logging
+  - Removed parsed dates logging
+  - Removed invalid dates console.error
+  - Removed final calendar ID logging
+  - Cleaner production-ready code
+- **Critical Bug Fixed**: Teams system migration was not applied to database
+  - **Issue**: event_members table did not exist, causing team page to fail
+  - **Root cause**: Migration file `20260101000007_create_teams_system.sql` was not applied
+  - **Fix**: Applied migration using Supabase MCP server
+  - **Result**: All 4 tables created (event_members, event_teams, team_members, event_invites)
+  - **Verification**: Backfilled all existing events with owner memberships
+  - **Status**: Team page now functional with create/invite buttons visible to owners
+- **RLS Policy Bug Fixed**: Users couldn't see their own membership record
+  - **Issue**: The SELECT policy on event_members required user to be a member to see members
+  - **Root cause**: Circular dependency - can't check own membership if you need to be a member to query
+  - **Fix**: Updated policy to allow `user_id = auth.uid()` OR existing member check
+  - **Migration**: `fix_event_members_self_select_policy`
+  - **Result**: Users can now see their own membership to determine their role
+- **Code Quality**: No additional critical bugs found in core functionality
+  - React Query hooks properly structured with cache invalidation
+  - RLS policies correctly enforced at database level
+  - Type safety maintained throughout teams system
+  - Proper error handling in mutation hooks
+- **Team Page Layout**: Verified two-column layout working correctly
+  - Left column: Team list with search and action buttons (320px fixed width)
+  - Right column: Team details with member list
+  - Proper conditional rendering based on user role (Owner/Admin/Member)
+  - Empty states properly implemented
+- **Invite Flow**: Validated invite acceptance page functionality
+  - Token validation working correctly
+  - Authentication check before acceptance
+  - Proper redirect to team page after acceptance
+  - Error states handled appropriately
+- **Database Trigger**: Auto-create owner membership trigger working
+  - Function: `create_owner_member()` creates owner record on event insert
+  - All future events will automatically have owner membership
+
+

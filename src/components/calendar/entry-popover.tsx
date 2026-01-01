@@ -116,8 +116,6 @@ export function EntryPopover({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     
-    console.log('Form submitted with values:', { title, startDate, startTime, endDate, endTime, isAllDay, calendarId })
-    
     // For all-day events, set time to midnight/end of day
     // For regular events, use the time inputs
     let start: Date
@@ -131,18 +129,13 @@ export function EntryPopover({
       end = new Date(`${endDate}T${endTime}:00`)
     }
     
-    console.log('Parsed dates:', { start, end, startValid: !isNaN(start.getTime()), endValid: !isNaN(end.getTime()) })
-    
     // Validate that dates are valid
     if (isNaN(start.getTime()) || isNaN(end.getTime())) {
-      console.error('Invalid date/time values:', { startDate, startTime, endDate, endTime, isAllDay })
       return
     }
     
     // Ensure calendar_id is set (use default if not selected)
     const finalCalendarId = calendarId || calendars.find(cal => cal.is_default)?.id || calendars[0]?.id || null
-    
-    console.log('Final calendar ID:', finalCalendarId)
 
     if (event) {
       onSave({

@@ -14,6 +14,159 @@ export type Database = {
   }
   public: {
     Tables: {
+      event_members: {
+        Row: {
+          id: string
+          event_id: string
+          user_id: string
+          role: 'owner' | 'admin' | 'member'
+          joined_at: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          event_id: string
+          user_id: string
+          role: 'owner' | 'admin' | 'member'
+          joined_at?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          event_id?: string
+          user_id?: string
+          role?: 'owner' | 'admin' | 'member'
+          joined_at?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_members_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      event_teams: {
+        Row: {
+          id: string
+          event_id: string
+          name: string
+          description: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          event_id: string
+          name: string
+          description?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          event_id?: string
+          name?: string
+          description?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_teams_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      team_members: {
+        Row: {
+          id: string
+          team_id: string
+          member_id: string
+          assigned_at: string
+        }
+        Insert: {
+          id?: string
+          team_id: string
+          member_id: string
+          assigned_at?: string
+        }
+        Update: {
+          id?: string
+          team_id?: string
+          member_id?: string
+          assigned_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "team_members_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "event_teams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "team_members_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "event_members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      event_invites: {
+        Row: {
+          id: string
+          event_id: string
+          invite_type: 'email' | 'link'
+          token: string
+          email: string | null
+          invited_by: string
+          expires_at: string
+          used_at: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          event_id: string
+          invite_type: 'email' | 'link'
+          token?: string
+          email?: string | null
+          invited_by: string
+          expires_at: string
+          used_at?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          event_id?: string
+          invite_type?: 'email' | 'link'
+          token?: string
+          email?: string | null
+          invited_by?: string
+          expires_at?: string
+          used_at?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_invites_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       calendar_events: {
         Row: {
           calendar_id: string | null
@@ -479,3 +632,33 @@ export type OrganizerUpdate = TablesUpdate<'organizers'>
 export type UserSettings = Tables<'user_settings'>
 export type UserSettingsInsert = TablesInsert<'user_settings'>
 export type UserSettingsUpdate = TablesUpdate<'user_settings'>
+
+// Teams system types
+export type EventMember = Tables<'event_members'>
+export type EventMemberInsert = TablesInsert<'event_members'>
+export type EventMemberUpdate = TablesUpdate<'event_members'>
+
+export type EventTeam = Tables<'event_teams'>
+export type EventTeamInsert = TablesInsert<'event_teams'>
+export type EventTeamUpdate = TablesUpdate<'event_teams'>
+
+export type TeamMember = Tables<'team_members'>
+export type TeamMemberInsert = TablesInsert<'team_members'>
+export type TeamMemberUpdate = TablesUpdate<'team_members'>
+
+export type EventInvite = Tables<'event_invites'>
+export type EventInviteInsert = TablesInsert<'event_invites'>
+export type EventInviteUpdate = TablesUpdate<'event_invites'>
+
+// Extended types with relations
+export type EventMemberWithUser = EventMember & {
+  user_email?: string
+  user_name?: string
+}
+
+export type EventTeamWithMembers = EventTeam & {
+  team_members?: (TeamMember & {
+    event_member?: EventMemberWithUser
+  })[]
+  member_count?: number
+}
