@@ -46,6 +46,8 @@ import { InviteMemberDialog } from '@/components/teams/invite-member-dialog'
 import type { EventTeam } from '@/lib/database.types'
 import AppShell from '@/components/app-shell'
 
+import { SidebarInset } from "@/components/ui/sidebar"
+
 function getRoleBadge(role: string) {
   switch (role) {
     case 'owner':
@@ -417,6 +419,7 @@ export default function TeamPage() {
   if (loadingCurrentMember || loadingEvent || loadingOrganizer) {
     return (
       <AppShell>
+        <SidebarInset>
         <div className="flex h-[calc(100vh-3rem)]">
           <div className="w-80 border-r p-4 space-y-4">
             <Skeleton className="h-10 w-full" />
@@ -432,12 +435,14 @@ export default function TeamPage() {
             <Skeleton className="h-4 w-64" />
           </div>
         </div>
+        </SidebarInset>
       </AppShell>
     )
   }
 
   return (
     <AppShell>
+      <SidebarInset>
       <div className="flex flex-col h-[calc(100vh-3rem)]">
         {/* Two Column Layout */}
         <div className="flex flex-1 overflow-hidden">
@@ -462,6 +467,7 @@ export default function TeamPage() {
           />
         </div>
       </div>
+      </SidebarInset>
 
       {/* Dialogs */}
       <CreateTeamDialog
@@ -522,6 +528,7 @@ export default function TeamPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      
     </AppShell>
   )
 }
