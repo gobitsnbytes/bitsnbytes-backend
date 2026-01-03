@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { EnvelopeSimple, CheckCircle } from '@phosphor-icons/react'
 
 export default function SignupPage() {
+  const [displayName, setDisplayName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -20,6 +21,12 @@ export default function SignupPage() {
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
+
+    // Validate display name
+    if (!displayName || displayName.trim().length < 2) {
+      setError('Display name must be at least 2 characters long')
+      return
+    }
 
     if (password !== confirmPassword) {
       setError('Passwords do not match')
@@ -38,12 +45,15 @@ export default function SignupPage() {
     // Get the current origin for redirectTo
     const origin = typeof window !== 'undefined' ? window.location.origin : ''
     
-    // Sign up the user
+    // Sign up the user with display_name in metadata
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email,
       password,
       options: {
         emailRedirectTo: `${origin}/auth/callback`,
+        data: {
+          display_name: displayName.trim(),
+        },
       },
     })
 
@@ -68,6 +78,7 @@ export default function SignupPage() {
         .insert({
           auth_user_id: authData.user.id,
           email: authData.user.email!,
+          display_name: displayName.trim(),
         })
 
       if (organizerError) {
@@ -146,6 +157,22 @@ export default function SignupPage() {
                 {error}
               </div>
             )}
+            <div className="space-y-2">
+              <Label htmlFor="displayName">Display Name</Label>
+              <Input
+                id="displayName"
+                type="text"
+                placeholder="John Doe"
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
+                required
+                minLength={2}
+                disabled={loading}
+              />
+              <p className="text-xs text-muted-foreground">
+                This will be used for your avatar and display throughout the app
+              </p>
+            </div>
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input

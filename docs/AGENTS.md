@@ -1,6 +1,6 @@
 # AGENTS.md - Technical and Product Decisions
 
-**Last Updated**: January 1, 2026 (Code Review & Cleanup)
+**Last Updated**: January 3, 2026 (State-Based Task System Migration)
 
 This file contains all approved technical and product decisions for the Event Management MVP.
 
@@ -933,6 +933,101 @@ Allows assigning calendar entries to specific calendars for color-coding.
 No active issues remaining. All critical bugs have been fixed.
 
 **IMPORTANT**: System is now production-ready with all major functionality working.
+
+### 33. State-Based Task System (Added Jan 3, 2026)
+**Decision**: Replace Kanban board with state-driven task list with explicit accountability
+- **Removed Kanban Concepts**:
+  - Deleted `task_columns` table
+  - Removed drag-and-drop interactions
+  - Removed free-form column movement
+  - No visual board UI
+
+- **New Task Status Enum**:
+  - `inbox`: Newly created tasks
+  - `active`: Tasks being worked on
+  - `waiting`: Blocked tasks requiring reason
+  - `done`: Completed tasks (final state)
+
+- **Explicit Accountability Fields**:
+  - `assigner_id`: Event member who created the task (required)
+  - `assignee_id`: Event member who owns execution (optional - can be team)
+  - `team_id`: Team assignment (optional - for team workflows)
+  - `waiting_reason`: Required text when status is `waiting` (min 1 char)
+  - `archived`: Boolean flag for archiving old done tasks
+  - `completed_at`: Timestamp set when status becomes `done`
+
+- **Permission Rules (Enforced in RLS)**:
+  - **Task Creation**: Any event member can create tasks (becomes assigner)
+  - **Task Deletion**: Only assigner or event owner
+  - **Status Changes**: 
+    - Assigner, assignee, or admins/owners can change status
+    - Members cannot mark tasks as `done` - only admins/owners can
+    - Status must follow workflow: cannot go directly `inbox → done`
+    - Must go through `active` or `waiting` first
+  - **Bidirectional Movement**: Between `active ↔ waiting` by assignee, assigner, team lead, or admins
+  - **Archive**: Only admins/owners can manually archive done tasks
+  - **Auto-Archive**: Tasks with status `done` for >1 day automatically move to archive view
+
+- **Team Assignment Workflow**:
+  - Task can be assigned to team OR individual (not necessarily both)
+  - When assigned to team: appears in team leader's inbox for reassignment
+  - When assigned to member: automatically associated with their team
+  - Team leaders can create tasks for their team at discretion
+  - If both team and assignee: member must be part of that team
+
+- **Assignment Rules**:
+  - Assigner can be owner/admin (create tasks for others)
+  - Assignee can be any member
+  - Exception: No one can assign tasks to owners except owner themselves
+  - This prevents task spam to event owners
+
+- **UI Implementation**:
+  - **Tabs**: All / Inbox / Active / Waiting / Archive
+  - **Filters**: Multi-select by team, assignee, due date
+  - **Task Cards**: Status badges, priority indicators, explicit action buttons
+  - **Action Dropdown**: Context-aware based on permissions and current status
+  - **Status Transitions**: 
+    - Start (inbox → active)
+    - Pause (active → inbox)
+    - Mark as Waiting (inbox/active → waiting with required reason)
+    - Resume (waiting → active)
+    - Mark Done (active/waiting → done, admin/owner only)
+  - **Archive View**: Reverse chronological list of completed tasks
+  - No drag interactions anywhere in task UI
+
+- **Database Constraints**:
+  - `waiting_reason` required when `status = 'waiting'`
+  - Either `assignee_id` OR `team_id` must be set (enforced by check constraint)
+  - Only `done` tasks can be `archived = true`
+  - Indexes optimized for filtering by status, assignee, team, due date
+
+- **Migration**: `supabase/migrations/20260104000000_convert_kanban_to_state_based_tasks.sql`
+- **Components**: `src/components/tasks/{task-card,task-list,create-task-dialog}.tsx`
+- **Hook**: `src/hooks/use-tasks.ts` (completely rewritten for state-based queries)
+
+### 34. Display Name in Signup (Added Jan 3, 2026)
+**Decision**: Require display_name during account creation for avatar generation
+- **Field Requirements**:
+  - Minimum 2 characters (no single-letter names)
+  - Stored in `organizers.display_name` column
+  - Passed via user metadata during signup for email verification flow
+  - Used to generate 2-letter initials for avatars
+
+- **Initials Generation**:
+  - Use first letter of first two words (e.g., "John Doe" → "JD")
+  - If single word, use first two letters (e.g., "John" → "JO")
+  - Fallback to email if no valid display name
+
+- **Implementation**:
+  - Added to signup form with validation
+  - Stored in auth.users.user_metadata for email verification flow
+  - Transferred to organizers table on callback
+  - Used throughout app for user identification
+
+- **Files Updated**:
+  - `src/app/signup/page.tsx`: Added display_name field with validation
+  - `src/app/auth/callback/route.ts`: Extract display_name from user metadata
+  - `src/lib/database.types.ts`: Already has display_name (nullable) in organizers table
 
 
 

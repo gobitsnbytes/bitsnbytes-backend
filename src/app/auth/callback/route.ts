@@ -20,11 +20,15 @@ export async function GET(request: Request) {
 
       // Create organizer record if it doesn't exist
       if (!existingOrganizer) {
+        // Get display_name from user metadata (set during signup)
+        const displayName = data.user.user_metadata?.display_name || null
+        
         const { error: organizerError } = await supabase
           .from('organizers')
           .insert({
             auth_user_id: data.user.id,
             email: data.user.email!,
+            display_name: displayName,
           } as never)
 
         if (organizerError) {
