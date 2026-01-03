@@ -73,19 +73,31 @@ export default function SignupPage() {
     }
 
     if (authData.user) {
-      // Create organizer record (only if session exists, meaning email confirmation is disabled)
-      const { error: organizerError } = await supabase
+      // Check if organizer record already exists (may have been created by auth callback)
+      const { data: existingOrganizer } = await supabase
         .from('organizers')
-        .insert({
-          auth_user_id: authData.user.id,
-          email: authData.user.email!,
-          display_name: displayName.trim(),
-        })
+        .select('id')
+        .eq('auth_user_id', authData.user.id)
+        .single()
 
-      if (organizerError) {
-        setError('Failed to create organizer profile. Please try again.')
-        setLoading(false)
-        return
+      // Only create if it doesn't exist
+      if (!existingOrganizer) {
+        const { error: organizerError } = await supabase
+          .from('organizers')
+          .insert({
+            auth_user_id: authData.user.id,
+            email: authData.user.email!,
+            display_name: displayName.trim(),
+          })
+
+        if (organizerError) {
+          // If it's a unique constraint violation, the auth callback likely beat us - that's fine
+          if (organizerError.code !== '23505') {
+            setError('Failed to create organizer profile. Please try again.')
+            setLoading(false)
+            return
+          }
+        }
       }
     }
 

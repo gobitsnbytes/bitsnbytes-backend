@@ -46,7 +46,7 @@ export function useEvent(eventId: string | null) {
     queryKey: ['event', eventId],
     queryFn: async () => {
       if (!eventId) return null
-      
+
       const supabase = createClient()
       const { data, error } = await supabase
         .from('events')
@@ -64,7 +64,7 @@ export function useEvent(eventId: string | null) {
 // Create event
 export function useCreateEvent() {
   const queryClient = useQueryClient()
-  
+
   return useMutation({
     mutationFn: async (event: Omit<EventInsert, 'organizer_id'>) => {
       const supabase = createClient()
@@ -82,13 +82,13 @@ export function useCreateEvent() {
       if (!organizer) {
         const { data: newOrganizer, error: createError } = await supabase
           .from('organizers')
-          .insert({
+          .upsert({
             auth_user_id: user.id,
             email: user.email!,
-          })
+          }, { onConflict: 'auth_user_id' })
           .select('id')
           .single()
-        
+
         if (createError) throw new Error(`Failed to create organizer: ${createError.message}`)
         organizer = newOrganizer
       }
@@ -102,14 +102,14 @@ export function useCreateEvent() {
         .single()
 
       if (error) throw new Error(`Failed to create event: ${error.message}`)
-      
+
       // Note: Default calendar is automatically created by database trigger
-      
+
       // If event has start_date and/or end_date, create a calendar event on the Primary calendar
       if (data && (event.start_date || event.end_date)) {
         // Wait a bit for the trigger to create the default calendar
         await new Promise(resolve => setTimeout(resolve, 100))
-        
+
         // Get the Primary calendar for this event
         const { data: calendars } = await supabase
           .from('calendars')
@@ -117,15 +117,15 @@ export function useCreateEvent() {
           .eq('event_id', data.id)
           .eq('is_default', true)
           .single()
-        
+
         if (calendars) {
           // Create start and end times for the all-day event
           const startDate = event.start_date ? new Date(event.start_date) : new Date(event.end_date!)
           startDate.setHours(0, 0, 0, 0)
-          
+
           const endDate = event.end_date ? new Date(event.end_date) : new Date(event.start_date!)
           endDate.setHours(23, 59, 59, 999)
-          
+
           // Create the calendar event
           await supabase
             .from('calendar_events')
@@ -140,7 +140,7 @@ export function useCreateEvent() {
             })
         }
       }
-      
+
       return data as Event
     },
     onSuccess: (data) => {
@@ -154,7 +154,7 @@ export function useCreateEvent() {
 // Update event
 export function useUpdateEvent() {
   const queryClient = useQueryClient()
-  
+
   return useMutation({
     mutationFn: async ({ id, ...updates }: { id: string } & Partial<Event>) => {
       const supabase = createClient()
@@ -178,7 +178,7 @@ export function useUpdateEvent() {
 // Delete event
 export function useDeleteEvent() {
   const queryClient = useQueryClient()
-  
+
   return useMutation({
     mutationFn: async (eventId: string) => {
       const supabase = createClient()
