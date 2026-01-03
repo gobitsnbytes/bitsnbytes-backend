@@ -80,17 +80,42 @@ export function useCreateEvent() {
 
       // Create organizer if it doesn't exist (fallback for users who signed up before callback was added)
       if (!organizer) {
-        const { data: newOrganizer, error: createError } = await supabase
+        // First, check if an organizer exists with this email (could be from a previous auth account)
+        const { data: existingByEmail } = await supabase
           .from('organizers')
-          .upsert({
-            auth_user_id: user.id,
-            email: user.email!,
-          }, { onConflict: 'auth_user_id' })
-          .select('id')
+          .select('id, auth_user_id')
+          .eq('email', user.email!)
           .single()
 
-        if (createError) throw new Error(`Failed to create organizer: ${createError.message}`)
-        organizer = newOrganizer
+        if (existingByEmail) {
+          // If the email exists but with a different auth_user_id, update it to link to the current user
+          if (existingByEmail.auth_user_id !== user.id) {
+            const { data: updatedOrganizer, error: updateError } = await supabase
+              .from('organizers')
+              .update({ auth_user_id: user.id })
+              .eq('id', existingByEmail.id)
+              .select('id')
+              .single()
+
+            if (updateError) throw new Error(`Failed to update organizer: ${updateError.message}`)
+            organizer = updatedOrganizer
+          } else {
+            organizer = existingByEmail
+          }
+        } else {
+          // No existing organizer with this email, create a new one
+          const { data: newOrganizer, error: createError } = await supabase
+            .from('organizers')
+            .insert({
+              auth_user_id: user.id,
+              email: user.email!,
+            })
+            .select('id')
+            .single()
+
+          if (createError) throw new Error(`Failed to create organizer: ${createError.message}`)
+          organizer = newOrganizer
+        }
       }
 
       if (!organizer) throw new Error('Organizer not found and could not be created')
