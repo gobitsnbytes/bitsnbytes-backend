@@ -41,16 +41,17 @@ export default function SignupPage() {
     setLoading(true)
 
     const supabase = createClient()
-    
-    // Get the current origin for redirectTo
-    const origin = typeof window !== 'undefined' ? window.location.origin : ''
-    
+
+    // Get the site URL for redirectTo
+    // Prefer environment variable, fallback to window.location.origin
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || (typeof window !== 'undefined' ? window.location.origin : '')
+
     // Sign up the user with display_name in metadata
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        emailRedirectTo: `${origin}/auth/callback`,
+        emailRedirectTo: `${siteUrl}/auth/callback`,
         data: {
           display_name: displayName.trim(),
         },
