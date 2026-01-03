@@ -4,13 +4,13 @@ import type { UserSettings } from '@/lib/database.types'
 import { useAppStore, type ThemePreference, type CalendarView } from '@/lib/store'
 
 export function useUserSettings() {
-  const supabase = createClient()
   const setThemePreference = useAppStore((state) => state.setThemePreference)
   const setCalendarView = useAppStore((state) => state.setCalendarView)
   
   return useQuery({
     queryKey: ['user-settings'],
     queryFn: async () => {
+      const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return null
 
@@ -43,7 +43,6 @@ export function useUserSettings() {
 
 export function useUpdateUserSettings() {
   const queryClient = useQueryClient()
-  const supabase = createClient()
   const setThemePreference = useAppStore((state) => state.setThemePreference)
   const setCalendarView = useAppStore((state) => state.setCalendarView)
   
@@ -52,6 +51,7 @@ export function useUpdateUserSettings() {
       theme_preference?: ThemePreference
       default_calendar_view?: CalendarView 
     }) => {
+      const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error('Not authenticated')
 

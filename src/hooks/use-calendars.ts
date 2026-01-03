@@ -4,13 +4,12 @@ import type { Calendar, CalendarInsert, CalendarUpdate } from '@/lib/database.ty
 
 // Get all calendars for a specific event
 export function useCalendars(eventId: string | null) {
-  const supabase = createClient()
-  
   return useQuery({
     queryKey: ['calendars', eventId],
     queryFn: async () => {
       if (!eventId) return []
       
+      const supabase = createClient()
       const { data, error } = await supabase
         .from('calendars')
         .select('*')
@@ -28,10 +27,10 @@ export function useCalendars(eventId: string | null) {
 // Create calendar
 export function useCreateCalendar() {
   const queryClient = useQueryClient()
-  const supabase = createClient()
   
   return useMutation({
     mutationFn: async (calendar: CalendarInsert) => {
+      const supabase = createClient()
       const { data, error } = await supabase
         .from('calendars')
         .insert(calendar as never)
@@ -50,7 +49,6 @@ export function useCreateCalendar() {
 // Update calendar
 export function useUpdateCalendar() {
   const queryClient = useQueryClient()
-  const supabase = createClient()
   
   return useMutation({
     mutationFn: async ({ 
@@ -58,6 +56,7 @@ export function useUpdateCalendar() {
       eventId, 
       ...updates 
     }: { id: string; eventId: string } & CalendarUpdate) => {
+      const supabase = createClient()
       const { data, error } = await supabase
         .from('calendars')
         .update(updates as never)
@@ -79,10 +78,10 @@ export function useUpdateCalendar() {
 // Delete calendar
 export function useDeleteCalendar() {
   const queryClient = useQueryClient()
-  const supabase = createClient()
   
   return useMutation({
     mutationFn: async ({ id, eventId }: { id: string; eventId: string }) => {
+      const supabase = createClient()
       // First, find the Primary calendar for this event
       const { data: primaryCalendar, error: primaryError } = await supabase
         .from('calendars')
@@ -120,7 +119,6 @@ export function useDeleteCalendar() {
 // Toggle calendar visibility
 export function useToggleCalendarVisibility() {
   const queryClient = useQueryClient()
-  const supabase = createClient()
   
   return useMutation({
     mutationFn: async ({ 
@@ -128,6 +126,7 @@ export function useToggleCalendarVisibility() {
       eventId, 
       isVisible 
     }: { id: string; eventId: string; isVisible: boolean }) => {
+      const supabase = createClient()
       const { data, error } = await supabase
         .from('calendars')
         .update({ is_visible: isVisible } as never)

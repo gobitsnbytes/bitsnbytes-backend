@@ -4,11 +4,10 @@ import type { Event, EventInsert, Organizer } from '@/lib/database.types'
 
 // Get current organizer
 export function useOrganizer() {
-  const supabase = createClient()
-  
   return useQuery({
     queryKey: ['organizer'],
     queryFn: async () => {
+      const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return null
 
@@ -26,11 +25,10 @@ export function useOrganizer() {
 
 // Get all events for current organizer
 export function useEvents() {
-  const supabase = createClient()
-  
   return useQuery({
     queryKey: ['events'],
     queryFn: async () => {
+      const supabase = createClient()
       const { data, error } = await supabase
         .from('events')
         .select('*')
@@ -44,13 +42,12 @@ export function useEvents() {
 
 // Get single event
 export function useEvent(eventId: string | null) {
-  const supabase = createClient()
-  
   return useQuery({
     queryKey: ['event', eventId],
     queryFn: async () => {
       if (!eventId) return null
       
+      const supabase = createClient()
       const { data, error } = await supabase
         .from('events')
         .select('*')
@@ -67,10 +64,10 @@ export function useEvent(eventId: string | null) {
 // Create event
 export function useCreateEvent() {
   const queryClient = useQueryClient()
-  const supabase = createClient()
   
   return useMutation({
     mutationFn: async (event: Omit<EventInsert, 'organizer_id'>) => {
+      const supabase = createClient()
       // Get organizer id first
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error('Not authenticated')
@@ -157,10 +154,10 @@ export function useCreateEvent() {
 // Update event
 export function useUpdateEvent() {
   const queryClient = useQueryClient()
-  const supabase = createClient()
   
   return useMutation({
     mutationFn: async ({ id, ...updates }: { id: string } & Partial<Event>) => {
+      const supabase = createClient()
       const { data, error } = await supabase
         .from('events')
         .update(updates)
@@ -181,10 +178,10 @@ export function useUpdateEvent() {
 // Delete event
 export function useDeleteEvent() {
   const queryClient = useQueryClient()
-  const supabase = createClient()
   
   return useMutation({
     mutationFn: async (eventId: string) => {
+      const supabase = createClient()
       const { error } = await supabase
         .from('events')
         .delete()

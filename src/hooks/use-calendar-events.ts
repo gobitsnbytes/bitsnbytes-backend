@@ -4,13 +4,12 @@ import type { CalendarEvent, CalendarEventInsert, CalendarEventUpdate } from '@/
 
 // Get calendar events for a specific event
 export function useCalendarEvents(eventId: string | null) {
-  const supabase = createClient()
-  
   return useQuery({
     queryKey: ['calendar-events', eventId],
     queryFn: async () => {
       if (!eventId) return []
       
+      const supabase = createClient()
       const { data, error } = await supabase
         .from('calendar_events')
         .select('*')
@@ -31,13 +30,12 @@ export function useCalendarEventsInRange(
   startDate: Date,
   endDate: Date
 ) {
-  const supabase = createClient()
-  
   return useQuery({
     queryKey: ['calendar-events', eventId, startDate.toISOString(), endDate.toISOString()],
     queryFn: async () => {
       if (!eventId) return []
       
+      const supabase = createClient()
       const { data, error } = await supabase
         .from('calendar_events')
         .select('*')
@@ -56,10 +54,10 @@ export function useCalendarEventsInRange(
 // Create calendar event
 export function useCreateCalendarEvent() {
   const queryClient = useQueryClient()
-  const supabase = createClient()
   
   return useMutation({
     mutationFn: async (calendarEvent: CalendarEventInsert) => {
+      const supabase = createClient()
       const { data, error } = await supabase
         .from('calendar_events')
         .insert(calendarEvent)
@@ -78,7 +76,6 @@ export function useCreateCalendarEvent() {
 // Update calendar event
 export function useUpdateCalendarEvent() {
   const queryClient = useQueryClient()
-  const supabase = createClient()
   
   return useMutation({
     mutationFn: async ({ 
@@ -86,6 +83,7 @@ export function useUpdateCalendarEvent() {
       eventId, 
       ...updates 
     }: { id: string; eventId: string } & CalendarEventUpdate) => {
+      const supabase = createClient()
       const { data, error } = await supabase
         .from('calendar_events')
         .update(updates)
@@ -128,10 +126,10 @@ export function useUpdateCalendarEvent() {
 // Delete calendar event
 export function useDeleteCalendarEvent() {
   const queryClient = useQueryClient()
-  const supabase = createClient()
   
   return useMutation({
     mutationFn: async ({ id, eventId }: { id: string; eventId: string }) => {
+      const supabase = createClient()
       const { error } = await supabase
         .from('calendar_events')
         .delete()

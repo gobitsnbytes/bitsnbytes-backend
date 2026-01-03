@@ -2,15 +2,10 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
 import type { 
   EventMember, 
-  EventMemberInsert, 
-  EventMemberUpdate,
   EventTeam,
   EventTeamInsert,
   EventTeamUpdate,
-  TeamMember,
-  TeamMemberInsert,
   EventInvite,
-  EventInviteInsert,
 } from '@/lib/database.types'
 
 // ============================================
@@ -19,13 +14,12 @@ import type {
 
 // Get current user's membership for an event
 export function useCurrentMember(eventId: string | null) {
-  const supabase = createClient()
-  
   return useQuery({
     queryKey: ['current-member', eventId],
     queryFn: async () => {
       if (!eventId) return null
       
+      const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return null
 
@@ -48,13 +42,12 @@ export function useCurrentMember(eventId: string | null) {
 
 // Get all members for an event with user info
 export function useEventMembers(eventId: string | null) {
-  const supabase = createClient()
-  
   return useQuery({
     queryKey: ['event-members', eventId],
     queryFn: async () => {
       if (!eventId) return []
 
+      const supabase = createClient()
       // First get all event members
       const { data: members, error: membersError } = await supabase
         .from('event_members')
@@ -92,7 +85,6 @@ export function useEventMembers(eventId: string | null) {
 // Update member role
 export function useUpdateMemberRole() {
   const queryClient = useQueryClient()
-  const supabase = createClient()
   
   return useMutation({
     mutationFn: async ({ 
@@ -100,6 +92,7 @@ export function useUpdateMemberRole() {
       eventId, 
       role 
     }: { memberId: string; eventId: string; role: 'admin' | 'member' }) => {
+      const supabase = createClient()
       const { data, error } = await supabase
         .from('event_members')
         .update({ role } as never)
@@ -119,10 +112,10 @@ export function useUpdateMemberRole() {
 // Remove member from event
 export function useRemoveMember() {
   const queryClient = useQueryClient()
-  const supabase = createClient()
   
   return useMutation({
     mutationFn: async ({ memberId, eventId }: { memberId: string; eventId: string }) => {
+      const supabase = createClient()
       const { error } = await supabase
         .from('event_members')
         .delete()
@@ -141,10 +134,10 @@ export function useRemoveMember() {
 // Leave event (current user)
 export function useLeaveEvent() {
   const queryClient = useQueryClient()
-  const supabase = createClient()
   
   return useMutation({
     mutationFn: async (eventId: string) => {
+      const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error('Not authenticated')
 
@@ -171,13 +164,12 @@ export function useLeaveEvent() {
 
 // Get all teams for an event
 export function useEventTeams(eventId: string | null) {
-  const supabase = createClient()
-  
   return useQuery({
     queryKey: ['event-teams', eventId],
     queryFn: async () => {
       if (!eventId) return []
 
+      const supabase = createClient()
       const { data, error } = await supabase
         .from('event_teams')
         .select(`
@@ -204,13 +196,12 @@ export function useEventTeams(eventId: string | null) {
 
 // Get teams for current user only (for Member role visibility)
 export function useMyTeams(eventId: string | null) {
-  const supabase = createClient()
-  
   return useQuery({
     queryKey: ['my-teams', eventId],
     queryFn: async () => {
       if (!eventId) return []
 
+      const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return []
 
@@ -260,10 +251,10 @@ export function useMyTeams(eventId: string | null) {
 // Create team
 export function useCreateTeam() {
   const queryClient = useQueryClient()
-  const supabase = createClient()
   
   return useMutation({
     mutationFn: async (team: EventTeamInsert) => {
+      const supabase = createClient()
       const { data, error } = await supabase
         .from('event_teams')
         .insert(team as never)
@@ -282,7 +273,6 @@ export function useCreateTeam() {
 // Update team
 export function useUpdateTeam() {
   const queryClient = useQueryClient()
-  const supabase = createClient()
   
   return useMutation({
     mutationFn: async ({ 
@@ -290,6 +280,7 @@ export function useUpdateTeam() {
       eventId, 
       ...updates 
     }: { id: string; eventId: string } & EventTeamUpdate) => {
+      const supabase = createClient()
       const { data, error } = await supabase
         .from('event_teams')
         .update(updates as never)
@@ -309,10 +300,10 @@ export function useUpdateTeam() {
 // Delete team
 export function useDeleteTeam() {
   const queryClient = useQueryClient()
-  const supabase = createClient()
   
   return useMutation({
     mutationFn: async ({ teamId, eventId }: { teamId: string; eventId: string }) => {
+      const supabase = createClient()
       const { error } = await supabase
         .from('event_teams')
         .delete()
@@ -334,13 +325,12 @@ export function useDeleteTeam() {
 
 // Get members of a specific team
 export function useTeamMembers(teamId: string | null) {
-  const supabase = createClient()
-  
   return useQuery({
     queryKey: ['team-members', teamId],
     queryFn: async () => {
       if (!teamId) return []
 
+      const supabase = createClient()
       const { data, error } = await supabase
         .from('team_members')
         .select(`
@@ -386,7 +376,6 @@ export function useTeamMembers(teamId: string | null) {
 // Assign members to team (batch operation)
 export function useAssignMembers() {
   const queryClient = useQueryClient()
-  const supabase = createClient()
   
   return useMutation({
     mutationFn: async ({ 
@@ -400,6 +389,7 @@ export function useAssignMembers() {
       memberIds: string[] // New set of member IDs to assign
       currentMemberIds: string[] // Current member IDs (for comparison)
     }) => {
+      const supabase = createClient()
       // Calculate additions and removals
       const toAdd = memberIds.filter(id => !currentMemberIds.includes(id))
       const toRemove = currentMemberIds.filter(id => !memberIds.includes(id))
@@ -442,7 +432,6 @@ export function useAssignMembers() {
 // Remove single member from team
 export function useRemoveFromTeam() {
   const queryClient = useQueryClient()
-  const supabase = createClient()
   
   return useMutation({
     mutationFn: async ({ 
@@ -450,6 +439,7 @@ export function useRemoveFromTeam() {
       memberId, 
       eventId 
     }: { teamId: string; memberId: string; eventId: string }) => {
+      const supabase = createClient()
       const { error } = await supabase
         .from('team_members')
         .delete()
@@ -473,13 +463,12 @@ export function useRemoveFromTeam() {
 
 // Get all invites for an event
 export function useEventInvites(eventId: string | null) {
-  const supabase = createClient()
-  
   return useQuery({
     queryKey: ['event-invites', eventId],
     queryFn: async () => {
       if (!eventId) return []
 
+      const supabase = createClient()
       const { data, error } = await supabase
         .from('event_invites')
         .select('*')
@@ -496,13 +485,13 @@ export function useEventInvites(eventId: string | null) {
 // Create email invite
 export function useCreateEmailInvite() {
   const queryClient = useQueryClient()
-  const supabase = createClient()
   
   return useMutation({
     mutationFn: async ({ 
       eventId, 
       email 
     }: { eventId: string; email: string }) => {
+      const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error('Not authenticated')
 
@@ -534,10 +523,10 @@ export function useCreateEmailInvite() {
 // Create link invite
 export function useCreateLinkInvite() {
   const queryClient = useQueryClient()
-  const supabase = createClient()
   
   return useMutation({
     mutationFn: async (eventId: string) => {
+      const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error('Not authenticated')
 
@@ -568,10 +557,10 @@ export function useCreateLinkInvite() {
 // Revoke/delete invite
 export function useRevokeInvite() {
   const queryClient = useQueryClient()
-  const supabase = createClient()
   
   return useMutation({
     mutationFn: async ({ inviteId, eventId }: { inviteId: string; eventId: string }) => {
+      const supabase = createClient()
       const { error } = await supabase
         .from('event_invites')
         .delete()
@@ -588,13 +577,12 @@ export function useRevokeInvite() {
 
 // Validate invite token (for invite acceptance page)
 export function useValidateInvite(token: string | null) {
-  const supabase = createClient()
-  
   return useQuery({
     queryKey: ['validate-invite', token],
     queryFn: async () => {
       if (!token) return null
 
+      const supabase = createClient()
       const { data, error } = await supabase
         .from('event_invites')
         .select(`
@@ -627,10 +615,10 @@ export function useValidateInvite(token: string | null) {
 // Accept invite (adds user to event)
 export function useAcceptInvite() {
   const queryClient = useQueryClient()
-  const supabase = createClient()
   
   return useMutation({
     mutationFn: async (token: string) => {
+      const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error('Not authenticated')
 

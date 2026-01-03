@@ -30,13 +30,12 @@ export function useTasks(eventId: string | null, filters?: {
   teamId?: string
   assignerId?: string
 }) {
-  const supabase = createClient()
-  
   return useQuery({
     queryKey: ['tasks', eventId, filters],
     queryFn: async () => {
       if (!eventId) return []
       
+      const supabase = createClient()
       let query = supabase
         .from('tasks')
         .select(`
@@ -74,13 +73,12 @@ export function useTasks(eventId: string | null, filters?: {
 
 // Get archived tasks (done > 1 day ago)
 export function useArchivedTasks(eventId: string | null) {
-  const supabase = createClient()
-  
   return useQuery({
     queryKey: ['tasks', eventId, 'archived'],
     queryFn: async () => {
       if (!eventId) return []
       
+      const supabase = createClient()
       const oneDayAgo = new Date()
       oneDayAgo.setDate(oneDayAgo.getDate() - 1)
       
@@ -106,13 +104,12 @@ export function useArchivedTasks(eventId: string | null) {
 
 // Get single task by ID
 export function useTask(taskId: string | null) {
-  const supabase = createClient()
-  
   return useQuery({
     queryKey: ['task', taskId],
     queryFn: async () => {
       if (!taskId) return null
       
+      const supabase = createClient()
       const { data, error } = await supabase
         .from('tasks')
         .select(`
@@ -134,10 +131,10 @@ export function useTask(taskId: string | null) {
 // Create task
 export function useCreateTask() {
   const queryClient = useQueryClient()
-  const supabase = createClient()
   
   return useMutation({
     mutationFn: async (task: TaskInsert) => {
+      const supabase = createClient()
       const { data, error } = await supabase
         .from('tasks')
         .insert(task as never)
@@ -161,7 +158,6 @@ export function useCreateTask() {
 // Update task
 export function useUpdateTask() {
   const queryClient = useQueryClient()
-  const supabase = createClient()
   
   return useMutation({
     mutationFn: async ({ 
@@ -169,6 +165,7 @@ export function useUpdateTask() {
       eventId, 
       ...updates 
     }: { id: string; eventId: string } & TaskUpdate) => {
+      const supabase = createClient()
       // If updating status to 'done', set completed_at
       if (updates.status === 'done' && !updates.completed_at) {
         updates.completed_at = new Date().toISOString()
@@ -238,10 +235,10 @@ export function useChangeTaskStatus() {
 // Archive task (only for done tasks, only by admins/owners)
 export function useArchiveTask() {
   const queryClient = useQueryClient()
-  const supabase = createClient()
   
   return useMutation({
     mutationFn: async ({ id, eventId }: { id: string; eventId: string }) => {
+      const supabase = createClient()
       const { data, error } = await supabase
         .from('tasks')
         .update({ archived: true } as never)
@@ -263,10 +260,10 @@ export function useArchiveTask() {
 // Delete task (only by assigner or event owner)
 export function useDeleteTask() {
   const queryClient = useQueryClient()
-  const supabase = createClient()
   
   return useMutation({
     mutationFn: async ({ id, eventId }: { id: string; eventId: string }) => {
+      const supabase = createClient()
       const { error } = await supabase
         .from('tasks')
         .delete()
