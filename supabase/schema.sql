@@ -341,8 +341,8 @@ ALTER TABLE task_columns ENABLE ROW LEVEL SECURITY;
 ALTER TABLE tasks ENABLE ROW LEVEL SECURITY;
 
 -- ORGANIZERS
-CREATE POLICY "Organizers can view own profile" ON organizers FOR SELECT USING (auth.uid() = auth_user_id);
-CREATE POLICY "Organizers can update own profile" ON organizers FOR UPDATE USING (auth.uid() = auth_user_id);
+CREATE POLICY "Organizers can view own profile by UID or email" ON organizers FOR SELECT USING (auth.uid() = auth_user_id OR auth.jwt() ->> 'email' = email);
+CREATE POLICY "Organizers can update own profile by UID or email" ON organizers FOR UPDATE USING (auth.uid() = auth_user_id OR auth.jwt() ->> 'email' = email);
 CREATE POLICY "Organizers can create own profile" ON organizers FOR INSERT WITH CHECK (auth.uid() = auth_user_id);
 
 -- USER_SETTINGS

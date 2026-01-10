@@ -15,7 +15,7 @@ export function useOrganizer() {
         .from('organizers')
         .select('*')
         .eq('auth_user_id', user.id)
-        .single()
+        .maybeSingle()
 
       if (error) throw error
       return data as Organizer
@@ -52,7 +52,7 @@ export function useEvent(eventId: string | null) {
         .from('events')
         .select('*')
         .eq('id', eventId)
-        .single()
+        .maybeSingle()
 
       if (error) throw error
       return data as Event
@@ -72,20 +72,24 @@ export function useCreateEvent() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error('Not authenticated')
 
-      let { data: organizer } = await supabase
+      let { data: organizer, error: organizerError } = await supabase
         .from('organizers')
         .select('id')
         .eq('auth_user_id', user.id)
-        .single()
+        .maybeSingle()
+
+      if (organizerError) throw new Error(`Failed to fetch organizer: ${organizerError.message}`)
 
       // Create organizer if it doesn't exist (fallback for users who signed up before callback was added)
       if (!organizer) {
         // First, check if an organizer exists with this email (could be from a previous auth account)
-        const { data: existingByEmail } = await supabase
+        const { data: existingByEmail, error: emailError } = await supabase
           .from('organizers')
           .select('id, auth_user_id')
           .eq('email', user.email!)
-          .single()
+          .maybeSingle()
+
+        if (emailError) throw new Error(`Failed to check existing organizer by email: ${emailError.message}`)
 
         if (existingByEmail) {
           // If the email exists but with a different auth_user_id, update it to link to the current user
@@ -95,7 +99,7 @@ export function useCreateEvent() {
               .update({ auth_user_id: user.id })
               .eq('id', existingByEmail.id)
               .select('id')
-              .single()
+              .maybeSingle()
 
             if (updateError) throw new Error(`Failed to update organizer: ${updateError.message}`)
             organizer = updatedOrganizer
@@ -141,7 +145,7 @@ export function useCreateEvent() {
           .select('id')
           .eq('event_id', data.id)
           .eq('is_default', true)
-          .single()
+          .maybeSingle()
 
         if (calendars) {
           // Create start and end times for the all-day event
@@ -188,7 +192,7 @@ export function useUpdateEvent() {
         .update(updates)
         .eq('id', id)
         .select()
-        .single()
+        .maybeSingle()
 
       if (error) throw error
       return data as Event
