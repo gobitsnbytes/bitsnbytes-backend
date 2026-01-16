@@ -23,7 +23,7 @@ function LoginForm() {
     setLoading(true)
 
     const supabase = createClient()
-    
+
     const { error } = await supabase.auth.signInWithPassword({
       email,
       password,
@@ -84,11 +84,8 @@ function LoginForm() {
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? 'Signing in...' : 'Sign in'}
             </Button>
-            <p className="text-muted-foreground text-sm">
-              Don&apos;t have an account?{' '}
-              <Link href="/signup" className="text-primary hover:underline">
-                Sign up
-              </Link>
+            <p className="text-muted-foreground text-sm text-center">
+              This platform is invite-only. Contact an administrator if you need access.
             </p>
           </CardFooter>
         </form>

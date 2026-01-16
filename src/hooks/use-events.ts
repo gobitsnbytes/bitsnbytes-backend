@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
-import type { Event, EventInsert, Organizer } from '@/lib/database.types'
+import type { Event, EventInsert, Organizer, EventWithArchive } from '@/lib/database.types'
 
 // Get current organizer
 export function useOrganizer() {
@@ -23,7 +23,7 @@ export function useOrganizer() {
   })
 }
 
-// Get all events for current organizer
+// Get all active (non-archived) events
 export function useEvents() {
   return useQuery({
     queryKey: ['events'],
@@ -32,10 +32,29 @@ export function useEvents() {
       const { data, error } = await supabase
         .from('events')
         .select('*')
+        .is('archived_at', null) // Only get non-archived events
         .order('created_at', { ascending: false })
 
       if (error) throw error
-      return data as Event[]
+      return data as EventWithArchive[]
+    },
+  })
+}
+
+// Get all archived events (for sudo/admin only)
+export function useArchivedEvents() {
+  return useQuery({
+    queryKey: ['events', 'archived'],
+    queryFn: async () => {
+      const supabase = createClient()
+      const { data, error } = await supabase
+        .from('events')
+        .select('*')
+        .not('archived_at', 'is', null) // Only get archived events
+        .order('archived_at', { ascending: false })
+
+      if (error) throw error
+      return data as EventWithArchive[]
     },
   })
 }
@@ -55,7 +74,7 @@ export function useEvent(eventId: string | null) {
         .maybeSingle()
 
       if (error) throw error
-      return data as Event
+      return data as EventWithArchive
     },
     enabled: !!eventId,
   })
@@ -204,7 +223,55 @@ export function useUpdateEvent() {
   })
 }
 
-// Delete event
+// Archive event (soft delete) - sets archived_at timestamp
+export function useArchiveEvent() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (eventId: string) => {
+      const supabase = createClient()
+      const { data, error } = await supabase
+        .from('events')
+        .update({ archived_at: new Date().toISOString() })
+        .eq('id', eventId)
+        .select()
+        .single()
+
+      if (error) throw error
+      return data as EventWithArchive
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['events'] })
+      queryClient.invalidateQueries({ queryKey: ['events', 'archived'] })
+    },
+  })
+}
+
+// Restore archived event - clears archived_at timestamp
+export function useRestoreEvent() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (eventId: string) => {
+      const supabase = createClient()
+      const { data, error } = await supabase
+        .from('events')
+        .update({ archived_at: null })
+        .eq('id', eventId)
+        .select()
+        .single()
+
+      if (error) throw error
+      return data as EventWithArchive
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['events'] })
+      queryClient.invalidateQueries({ queryKey: ['events', 'archived'] })
+    },
+  })
+}
+
+// Permanent delete event (hard delete) - sudo only
 export function useDeleteEvent() {
   const queryClient = useQueryClient()
 
@@ -221,6 +288,8 @@ export function useDeleteEvent() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['events'] })
+      queryClient.invalidateQueries({ queryKey: ['events', 'archived'] })
     },
   })
 }
+

@@ -21,10 +21,14 @@ export type Database = {
           description: string | null
           end_time: string
           event_id: string
+          google_event_id: string | null
+          google_meet_link: string | null
+          google_updated_at: string | null
           id: string
           is_all_day: boolean
           location: string | null
           start_time: string
+          synced_at: string | null
           title: string
           updated_at: string
         }
@@ -34,10 +38,14 @@ export type Database = {
           description?: string | null
           end_time: string
           event_id: string
+          google_event_id?: string | null
+          google_meet_link?: string | null
+          google_updated_at?: string | null
           id?: string
           is_all_day?: boolean
           location?: string | null
           start_time: string
+          synced_at?: string | null
           title: string
           updated_at?: string
         }
@@ -47,10 +55,14 @@ export type Database = {
           description?: string | null
           end_time?: string
           event_id?: string
+          google_event_id?: string | null
+          google_meet_link?: string | null
+          google_updated_at?: string | null
           id?: string
           is_all_day?: boolean
           location?: string | null
           start_time?: string
+          synced_at?: string | null
           title?: string
           updated_at?: string
         }
@@ -112,6 +124,92 @@ export type Database = {
           },
         ]
       }
+      cities: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
+      google_credentials: {
+        Row: {
+          access_token: string
+          calendar_id: string | null
+          created_at: string
+          id: string
+          refresh_token: string
+          token_expiry: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          access_token: string
+          calendar_id?: string | null
+          created_at?: string
+          id?: string
+          refresh_token: string
+          token_expiry?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          access_token?: string
+          calendar_id?: string | null
+          created_at?: string
+          id?: string
+          refresh_token?: string
+          token_expiry?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      platform_users: {
+        Row: {
+          city_id: string | null
+          created_at: string
+          id: string
+          role: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          city_id?: string | null
+          created_at?: string
+          id?: string
+          role: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          city_id?: string | null
+          created_at?: string
+          id?: string
+          role?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "platform_users_city_id_fkey"
+            columns: ["city_id"]
+            isOneToOne: false
+            referencedRelation: "cities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       event_invites: {
         Row: {
           created_at: string
@@ -121,6 +219,7 @@ export type Database = {
           id: string
           invite_type: string
           invited_by: string
+          role: string
           token: string
           used_at: string | null
         }
@@ -132,6 +231,7 @@ export type Database = {
           id?: string
           invite_type: string
           invited_by: string
+          role?: string
           token?: string
           used_at?: string | null
         }
@@ -143,6 +243,7 @@ export type Database = {
           id?: string
           invite_type?: string
           invited_by?: string
+          role?: string
           token?: string
           used_at?: string | null
         }
@@ -231,6 +332,8 @@ export type Database = {
       }
       events: {
         Row: {
+          archived_at: string | null
+          city_id: string | null
           created_at: string
           description: string | null
           end_date: string | null
@@ -243,6 +346,8 @@ export type Database = {
           venue: string | null
         }
         Insert: {
+          archived_at?: string | null
+          city_id?: string | null
           created_at?: string
           description?: string | null
           end_date?: string | null
@@ -255,6 +360,8 @@ export type Database = {
           venue?: string | null
         }
         Update: {
+          archived_at?: string | null
+          city_id?: string | null
           created_at?: string
           description?: string | null
           end_date?: string | null
@@ -497,116 +604,116 @@ type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
 
 export type Tables<
   DefaultSchemaTableNameOrOptions extends
-    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
-    | { schema: keyof DatabaseWithoutInternals },
+  | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+  | { schema: keyof DatabaseWithoutInternals },
   TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
-        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+  ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+    DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+  : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
   ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
-      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+    DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
       Row: infer R
     }
-    ? R
-    : never
+  ? R
+  : never
   : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
-        DefaultSchema["Views"])
-    ? (DefaultSchema["Tables"] &
-        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
-        Row: infer R
-      }
-      ? R
-      : never
-    : never
+    DefaultSchema["Views"])
+  ? (DefaultSchema["Tables"] &
+    DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+      Row: infer R
+    }
+  ? R
+  : never
+  : never
 
 export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
-    | keyof DefaultSchema["Tables"]
-    | { schema: keyof DatabaseWithoutInternals },
+  | keyof DefaultSchema["Tables"]
+  | { schema: keyof DatabaseWithoutInternals },
   TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+  ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+  : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
   ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
-      Insert: infer I
-    }
-    ? I
-    : never
+    Insert: infer I
+  }
+  ? I
+  : never
   : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
-    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
-        Insert: infer I
-      }
-      ? I
-      : never
-    : never
+  ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+    Insert: infer I
+  }
+  ? I
+  : never
+  : never
 
 export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
-    | keyof DefaultSchema["Tables"]
-    | { schema: keyof DatabaseWithoutInternals },
+  | keyof DefaultSchema["Tables"]
+  | { schema: keyof DatabaseWithoutInternals },
   TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+  ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+  : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
   ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
-      Update: infer U
-    }
-    ? U
-    : never
+    Update: infer U
+  }
+  ? U
+  : never
   : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
-    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
-        Update: infer U
-      }
-      ? U
-      : never
-    : never
+  ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+    Update: infer U
+  }
+  ? U
+  : never
+  : never
 
 export type Enums<
   DefaultSchemaEnumNameOrOptions extends
-    | keyof DefaultSchema["Enums"]
-    | { schema: keyof DatabaseWithoutInternals },
+  | keyof DefaultSchema["Enums"]
+  | { schema: keyof DatabaseWithoutInternals },
   EnumName extends DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+  ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+  : never = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
   ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
   : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
-    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
-    : never
+  ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+  : never
 
 export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
-    | keyof DefaultSchema["CompositeTypes"]
-    | { schema: keyof DatabaseWithoutInternals },
+  | keyof DefaultSchema["CompositeTypes"]
+  | { schema: keyof DatabaseWithoutInternals },
   CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+  ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+  : never = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
   ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
   : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
-    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
-    : never
+  ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+  : never
 
 export const Constants = {
   public: {
@@ -678,3 +785,109 @@ export type TaskWithRelations = Task & {
   assignee?: EventMemberWithUser
   team?: EventTeam
 }
+
+// ============================================
+// RBAC System Types (Added Jan 17, 2026)
+// ============================================
+
+// Platform role types
+export type PlatformRole = 'sudo' | 'admin'
+export type EventRole = 'editor' | 'commentator' | 'viewer'
+
+// City type
+export interface City {
+  id: string
+  name: string
+  created_at: string
+}
+
+export interface CityInsert {
+  id?: string
+  name: string
+  created_at?: string
+}
+
+// Platform user type (sudo/admin)
+export interface PlatformUser {
+  id: string
+  user_id: string
+  role: PlatformRole
+  city_id: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface PlatformUserInsert {
+  id?: string
+  user_id: string
+  role: PlatformRole
+  city_id?: string | null
+  created_at?: string
+  updated_at?: string
+}
+
+export interface PlatformUserUpdate {
+  role?: PlatformRole
+  city_id?: string | null
+  updated_at?: string
+}
+
+// Extended platform user with city info
+export interface PlatformUserWithCity extends PlatformUser {
+  city?: City | null
+}
+
+// Google credentials type
+export interface GoogleCredentials {
+  id: string
+  user_id: string
+  access_token: string
+  refresh_token: string
+  token_expiry: string
+  calendar_id: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface GoogleCredentialsInsert {
+  id?: string
+  user_id: string
+  access_token: string
+  refresh_token: string
+  token_expiry: string
+  calendar_id?: string | null
+  created_at?: string
+  updated_at?: string
+}
+
+export interface GoogleCredentialsUpdate {
+  access_token?: string
+  refresh_token?: string
+  token_expiry?: string
+  calendar_id?: string | null
+  updated_at?: string
+}
+
+// Extended Event type with city relationship
+export interface EventWithArchive extends Event {
+  city?: City | null
+}
+
+// CalendarEvent type alias (all fields now in base type)
+export type CalendarEventWithSync = CalendarEvent
+
+// Extended EventInvite with role
+export interface EventInviteWithRole extends EventInvite {
+  role: EventRole
+}
+
+// Permission object for UI rendering
+export interface EventPermissions {
+  canView: boolean
+  canEdit: boolean
+  canManageMembers: boolean
+  canArchive: boolean
+  canDelete: boolean
+  role: PlatformRole | EventRole | 'owner' | null
+}
+

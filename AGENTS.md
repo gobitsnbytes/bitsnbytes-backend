@@ -1024,10 +1024,74 @@ No active issues remaining. All critical bugs have been fixed.
   - Transferred to organizers table on callback
   - Used throughout app for user identification
 
-- **Files Updated**:
   - `src/app/signup/page.tsx`: Added display_name field with validation
   - `src/app/auth/callback/route.ts`: Extract display_name from user metadata
   - `src/lib/database.types.ts`: Already has display_name (nullable) in organizers table
 
+### 55. Platform Role-Based Access Control (Added Jan 17, 2026)
+**Decision**: Implement 5-tier RBAC hierarchy with platform and event-level roles
+- **Role Hierarchy**:
+  - `sudo`: Platform-wide god mode, access to everything
+  - `admin`: City-scoped, can manage events in assigned city
+  - `editor`: Event-level, can create/edit calendar entries, tasks, teams
+  - `commentator`: Event-level, read + future comment capability
+  - `viewer`: Event-level, read-only access
+- **Database Tables**:
+  - `platform_users`: Stores sudo/admin platform roles with city assignment
+  - `cities`: Managed exclusively by sudo, used for admin city scope
+- **Implementation**:
+  - New hook: `src/hooks/use-rbac.ts` with permission checking
+  - Helper functions in database: `is_platform_sudo()`, `is_platform_admin()`, `is_city_admin()`
+  - RLS policies updated to check platform roles
+- **Migration**: `supabase/migrations/20260117_platform_enhancements.sql`
 
+### 56. Event Soft Delete (Archive System) (Added Jan 17, 2026)
+**Decision**: Implement soft-delete with archive/restore instead of hard delete
+- **Database Change**: Added `archived_at` column to events table
+- **Behavior**:
+  - Archived events hidden from main event list (`useEvents()`)
+  - Separate `useArchivedEvents()` hook for viewing archived events
+  - Only sudo/admin can archive and restore events
+  - Hard delete (`useDeleteEvent()`) restricted to sudo only
+- **Hooks Added**:
+  - `useArchiveEvent()`: Sets `archived_at` timestamp
+  - `useRestoreEvent()`: Clears `archived_at` timestamp
+  - `useArchivedEvents()`: Fetches archived events list
 
+### 57. Invite-Only Authentication (Added Jan 17, 2026)
+**Decision**: Hide public signup, use invite-only system with role assignment
+- **Signup Page**: Hidden from main navigation (kept functional for exceptional cases)
+- **Invite Enhancement**: `event_invites.role` column added to assign roles during invite
+  - Valid roles: `editor`, `commentator`, `viewer`
+- **Flow**: Users receive invite → Accept with role pre-assigned → Become event member
+
+### 58. Cities Management (Added Jan 17, 2026)
+**Decision**: Add cities table managed exclusively by sudo
+- **Database Table**: `cities` with id, name, created_at
+- **Management**: Only sudo users can add/remove cities
+- **Usage**: Admins are assigned to cities, events can be associated with cities
+- **Hooks**:
+  - `useCities()`: Fetch all cities
+  - `useCreateCity()`: Sudo creates new city
+  - `useDeleteCity()`: Sudo removes city
+
+### 59. Sudo Impersonation Mode (Added Jan 17, 2026)
+**Decision**: Allow sudo users to "View as" other roles for testing
+- **Implementation**: Zustand store with persist middleware
+- **Stored in**: LocalStorage (not database)
+- **Features**:
+  - Switch to any role (admin, editor, commentator, viewer)
+  - Visual indicator when impersonating
+  - Easy toggle back to sudo mode
+- **Store**: `useImpersonationStore` in `src/hooks/use-rbac.ts`
+
+### 60. Google Calendar Integration (Added Jan 17, 2026)
+**Decision**: Two-way sync with Google Calendar and Google Meet link generation
+- **Database Tables**:
+  - `google_credentials`: Stores OAuth tokens per user
+  - Calendar events columns: `google_event_id`, `google_meet_link`, `synced_at`, `google_updated_at`
+- **Sync Strategy**: Manual refresh button (no auto-polling)
+  - Bi-directional: Push local → Google, Pull Google → local
+  - Conflict resolution: Last-modified wins
+- **OAuth Flow**: `/api/google/auth` → Google OAuth → `/api/google/callback`
+- **Requirements**: Google Cloud Console setup with Calendar API enabled

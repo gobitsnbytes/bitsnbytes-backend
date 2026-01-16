@@ -19,7 +19,7 @@ export function Calendar({ eventId }: CalendarProps) {
   const calendarDate = useAppStore((state) => state.calendarDate)
   const setCalendarView = useAppStore((state) => state.setCalendarView)
   const setCalendarDate = useAppStore((state) => state.setCalendarDate)
-  
+
   const { data: events = [], isLoading } = useCalendarEvents(eventId)
   const { data: calendars = [] } = useCalendars(eventId)
   const createEvent = useCreateCalendarEvent()
@@ -51,11 +51,11 @@ export function Calendar({ eventId }: CalendarProps) {
     // Prevent reopening immediately after closing
     const now = Date.now()
     if (now - lastPopoverClose < 200) return
-    
+
     setSelectedEvent(null)
     setSelectedSlotDate(date)
     setSelectedEndDate(null)
-    
+
     // Calculate position near center of container
     if (containerRef.current) {
       const rect = containerRef.current.getBoundingClientRect()
@@ -64,7 +64,7 @@ export function Calendar({ eventId }: CalendarProps) {
         y: rect.height / 3,
       })
     }
-    
+
     setPopoverOpen(true)
   }, [lastPopoverClose])
 
@@ -72,7 +72,7 @@ export function Calendar({ eventId }: CalendarProps) {
     setSelectedEvent(event)
     setSelectedSlotDate(null)
     setSelectedEndDate(null)
-    
+
     // Calculate position near center of container
     if (containerRef.current) {
       const rect = containerRef.current.getBoundingClientRect()
@@ -81,7 +81,7 @@ export function Calendar({ eventId }: CalendarProps) {
         y: rect.height / 3,
       })
     }
-    
+
     setPopoverOpen(true)
   }, [])
 
@@ -128,12 +128,12 @@ export function Calendar({ eventId }: CalendarProps) {
     // Prevent reopening immediately after closing
     const now = Date.now()
     if (now - lastPopoverClose < 200) return
-    
+
     // Set the selected slot date and end date, then open the popover
     setSelectedEvent(null)
     setSelectedSlotDate(start)
     setSelectedEndDate(end)
-    
+
     if (containerRef.current) {
       const rect = containerRef.current.getBoundingClientRect()
       setPopoverPosition({
@@ -141,28 +141,28 @@ export function Calendar({ eventId }: CalendarProps) {
         y: rect.height / 3,
       })
     }
-    
+
     setPopoverOpen(true)
   }, [lastPopoverClose])
-  
+
   // Handler for creating all-day events from month view drag-select
   const handleCreateAllDayEvent = useCallback((startDate: Date, endDate: Date) => {
     // Prevent reopening immediately after closing
     const now = Date.now()
     if (now - lastPopoverClose < 200) return
-    
+
     // Set times to all-day (00:00 to 23:59)
     const start = new Date(startDate)
     start.setHours(0, 0, 0, 0)
-    
+
     const end = new Date(endDate)
     end.setHours(23, 59, 59, 999)
-    
+
     // Set the selected slot date and end date with all-day flag, then open the popover
     setSelectedEvent(null)
     setSelectedSlotDate(start)
     setSelectedEndDate(end)
-    
+
     if (containerRef.current) {
       const rect = containerRef.current.getBoundingClientRect()
       setPopoverPosition({
@@ -170,7 +170,7 @@ export function Calendar({ eventId }: CalendarProps) {
         y: rect.height / 3,
       })
     }
-    
+
     setPopoverOpen(true)
   }, [lastPopoverClose])
 
@@ -187,8 +187,8 @@ export function Calendar({ eventId }: CalendarProps) {
 
   return (
     <div ref={containerRef} className="relative flex flex-1 flex-col overflow-hidden">
-      <CalendarHeader />
-      
+      <CalendarHeader eventId={eventId} />
+
       {calendarView === 'week' && (
         <WeekView
           date={calendarDate}
@@ -201,7 +201,7 @@ export function Calendar({ eventId }: CalendarProps) {
           popoverOpen={popoverOpen}
         />
       )}
-      
+
       {calendarView === 'month' && (
         <MonthView
           date={calendarDate}
