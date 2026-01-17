@@ -2,30 +2,46 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { useEvents, useArchivedEvents, useArchiveEvent, useRestoreEvent, useDeleteEvent } from '@/hooks/use-events'
 import { useUserSettings } from '@/hooks/use-settings'
-import { usePlatformRole } from '@/hooks/use-rbac'
+import { usePlatformRole, useCities } from '@/hooks/use-rbac'
+import {
+  useTemplateEvents,
+  usePendingEvents,
+  useAcceptedEvents,
+  useIgnoredEvents,
+  usePushEventToCities,
+  useAcceptEvent,
+  useIgnoreEvent,
+  useRestoreIgnoredEvent,
+} from '@/hooks/use-event-distribution'
 import { useAppStore } from '@/lib/store'
-import { Plus, ArrowRight, Gear, SignOut, DotsThree, Archive, ArrowCounterClockwise, Trash, CaretDown, CaretUp } from '@phosphor-icons/react'
+import {
+  Plus,
+  ArrowRight,
+  Gear,
+  SignOut,
+  PaperPlaneTilt,
+  Check,
+  X,
+  ArrowCounterClockwise,
+  CaretDown,
+  CaretUp,
+  Buildings,
+  Envelope,
+  CheckCircle,
+} from '@phosphor-icons/react'
 import { Button } from '@/components/ui/button'
-import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardDescription, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog'
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog'
+import { Checkbox } from '@/components/ui/checkbox'
 import { CreateEventDialog } from '@/components/create-event-dialog'
 import { SettingsDialog } from '@/components/settings-dialog'
 import { createClient } from '@/lib/supabase/client'
@@ -34,24 +50,51 @@ import type { Event } from '@/lib/database.types'
 
 export default function HomePage() {
   const router = useRouter()
-  const { data: events, isLoading } = useEvents()
-  const { data: archivedEvents } = useArchivedEvents()
-  const { data: platformRole } = usePlatformRole()
-  const archiveEvent = useArchiveEvent()
-  const restoreEvent = useRestoreEvent()
-  const deleteEvent = useDeleteEvent()
-  const setCurrentEventId = useAppStore((state) => state.setCurrentEventId)
-  const [createEventOpen, setCreateEventOpen] = useState(false)
-  const [settingsOpen, setSettingsOpen] = useState(false)
-  const [showArchived, setShowArchived] = useState(false)
-  const [deleteEventId, setDeleteEventId] = useState<string | null>(null)
+  const { data: platformRole, isLoading: isLoadingRole } = usePlatformRole()
 
   // Load user settings on mount
   useUserSettings()
 
-  // Check if user can manage archives (sudo or admin)
-  const canManageArchives = platformRole?.role === 'sudo' || platformRole?.role === 'admin'
-  const canDelete = platformRole?.role === 'sudo'
+  const isSudo = platformRole?.role === 'sudo'
+  const isAdmin = platformRole?.role === 'admin'
+
+  if (isLoadingRole) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <div className="size-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+          <p className="text-sm text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (isSudo) {
+    return <SudoDashboard />
+  }
+
+  if (isAdmin) {
+    return <CityAdminDashboard />
+  }
+
+  // Regular user or no platform role
+  return <RegularUserView />
+}
+
+// ============================================
+// SUDO DASHBOARD
+// ============================================
+function SudoDashboard() {
+  const router = useRouter()
+  const { data: events, isLoading } = useTemplateEvents()
+  const { data: cities } = useCities()
+  const pushToCities = usePushEventToCities()
+  const setCurrentEventId = useAppStore((state) => state.setCurrentEventId)
+  const [createEventOpen, setCreateEventOpen] = useState(false)
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const [pushDialogOpen, setPushDialogOpen] = useState(false)
+  const [selectedEventId, setSelectedEventId] = useState<string | null>(null)
+  const [selectedCities, setSelectedCities] = useState<string[]>([])
 
   const handleEventSelect = (event: Event) => {
     setCurrentEventId(event.id)
@@ -65,21 +108,30 @@ export default function HomePage() {
     router.refresh()
   }
 
-  const handleArchive = (eventId: string, e: React.MouseEvent) => {
+  const handleOpenPushDialog = (eventId: string, e: React.MouseEvent) => {
     e.stopPropagation()
-    archiveEvent.mutate(eventId)
+    setSelectedEventId(eventId)
+    setSelectedCities([])
+    setPushDialogOpen(true)
   }
 
-  const handleRestore = (eventId: string, e: React.MouseEvent) => {
-    e.stopPropagation()
-    restoreEvent.mutate(eventId)
+  const handlePush = async () => {
+    if (!selectedEventId || selectedCities.length === 0) return
+    await pushToCities.mutateAsync({
+      eventId: selectedEventId,
+      cityIds: selectedCities,
+    })
+    setPushDialogOpen(false)
+    setSelectedEventId(null)
+    setSelectedCities([])
   }
 
-  const handleDelete = () => {
-    if (deleteEventId) {
-      deleteEvent.mutate(deleteEventId)
-      setDeleteEventId(null)
-    }
+  const toggleCity = (cityId: string) => {
+    setSelectedCities(prev =>
+      prev.includes(cityId)
+        ? prev.filter(id => id !== cityId)
+        : [...prev, cityId]
+    )
   }
 
   const formatEventDates = (event: Event) => {
@@ -93,24 +145,13 @@ export default function HomePage() {
     return null
   }
 
-  if (isLoading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="flex flex-col items-center gap-4">
-          <div className="size-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-          <p className="text-sm text-muted-foreground">Loading...</p>
-        </div>
-      </div>
-    )
-  }
-
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
       <header className="border-b">
         <div className="container mx-auto flex h-14 items-center justify-between px-4">
           <div className="flex items-center gap-2">
             <span className="text-lg font-semibold">Event Manager</span>
+            <Badge variant="secondary">Sudo</Badge>
           </div>
           <div className="flex items-center gap-2">
             <Button variant="ghost" size="icon" onClick={() => setSettingsOpen(true)}>
@@ -123,12 +164,11 @@ export default function HomePage() {
         </div>
       </header>
 
-      {/* Main Content */}
       <main className="container mx-auto px-4 py-8">
         <div className="mb-8 flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold">Your Events</h1>
-            <p className="text-muted-foreground">Select an event to manage or create a new one</p>
+            <h1 className="text-2xl font-bold">Event Templates</h1>
+            <p className="text-muted-foreground">Create events and push them to city leads</p>
           </div>
           <Button onClick={() => setCreateEventOpen(true)} className="gap-2">
             <Plus className="size-4" />
@@ -136,14 +176,18 @@ export default function HomePage() {
           </Button>
         </div>
 
-        {!events || events.length === 0 ? (
+        {isLoading ? (
+          <div className="flex justify-center py-12">
+            <div className="size-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+          </div>
+        ) : !events || events.length === 0 ? (
           <div className="flex flex-col items-center justify-center rounded-none border border-dashed py-16">
             <div className="flex size-16 items-center justify-center rounded-full bg-muted text-3xl">
               🎉
             </div>
             <h2 className="mt-4 text-xl font-semibold">No events yet</h2>
             <p className="mt-2 text-sm text-muted-foreground">
-              Create your first event to start scheduling calendar entries.
+              Create your first event template to push to cities.
             </p>
             <Button onClick={() => setCreateEventOpen(true)} className="mt-4 gap-2">
               <Plus className="size-4" />
@@ -172,21 +216,14 @@ export default function HomePage() {
                       </div>
                     </div>
                     <div className="flex items-center gap-1">
-                      {canManageArchives && (
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                            <Button variant="ghost" size="icon-sm" className="opacity-0 group-hover:opacity-100">
-                              <DotsThree className="size-4" weight="bold" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={(e) => handleArchive(event.id, e)}>
-                              <Archive className="size-4 mr-2" />
-                              Archive
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      )}
+                      <Button
+                        variant="outline"
+                        size="icon-sm"
+                        onClick={(e) => handleOpenPushDialog(event.id, e)}
+                        className="opacity-0 group-hover:opacity-100"
+                      >
+                        <PaperPlaneTilt className="size-4" />
+                      </Button>
                       <ArrowRight className="size-5 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
                     </div>
                   </div>
@@ -195,27 +232,247 @@ export default function HomePage() {
             ))}
           </div>
         )}
+      </main>
 
-        {/* Archived Events Section */}
-        {canManageArchives && archivedEvents && archivedEvents.length > 0 && (
-          <div className="mt-12">
+      <CreateEventDialog open={createEventOpen} onOpenChange={setCreateEventOpen} />
+      <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
+
+      {/* Push to Cities Dialog */}
+      <Dialog open={pushDialogOpen} onOpenChange={setPushDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Push Event to Cities</DialogTitle>
+            <DialogDescription>
+              Select which cities should receive this event.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4 space-y-3 max-h-[300px] overflow-y-auto">
+            {cities?.map((city) => (
+              <label
+                key={city.id}
+                className="flex items-center gap-3 p-3 border rounded-none cursor-pointer hover:bg-muted/50"
+              >
+                <Checkbox
+                  checked={selectedCities.includes(city.id)}
+                  onCheckedChange={() => toggleCity(city.id)}
+                />
+                <Buildings className="size-4 text-muted-foreground" />
+                <span className="font-medium">{city.name}</span>
+              </label>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPushDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handlePush}
+              disabled={selectedCities.length === 0 || pushToCities.isPending}
+              className="gap-2"
+            >
+              <PaperPlaneTilt className="size-4" />
+              {pushToCities.isPending ? 'Pushing...' : `Push to ${selectedCities.length} cities`}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  )
+}
+
+// ============================================
+// CITY ADMIN DASHBOARD
+// ============================================
+function CityAdminDashboard() {
+  const router = useRouter()
+  const { data: platformRole } = usePlatformRole()
+  const { data: pendingEvents, isLoading: loadingPending } = usePendingEvents()
+  const { data: acceptedEvents, isLoading: loadingAccepted } = useAcceptedEvents()
+  const { data: ignoredEvents } = useIgnoredEvents()
+  const acceptEvent = useAcceptEvent()
+  const ignoreEvent = useIgnoreEvent()
+  const restoreEvent = useRestoreIgnoredEvent()
+  const setCurrentEventId = useAppStore((state) => state.setCurrentEventId)
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const [showIgnored, setShowIgnored] = useState(false)
+
+  const handleEventSelect = (event: Event) => {
+    setCurrentEventId(event.id)
+    router.push(`/events/${event.id}`)
+  }
+
+  const handleSignOut = async () => {
+    const supabase = createClient()
+    await supabase.auth.signOut()
+    router.push('/login')
+    router.refresh()
+  }
+
+  const handleAccept = async (eventId: string, e: React.MouseEvent) => {
+    e.stopPropagation()
+    await acceptEvent.mutateAsync(eventId)
+  }
+
+  const handleIgnore = async (eventId: string, e: React.MouseEvent) => {
+    e.stopPropagation()
+    await ignoreEvent.mutateAsync(eventId)
+  }
+
+  const handleRestore = async (eventId: string, e: React.MouseEvent) => {
+    e.stopPropagation()
+    await restoreEvent.mutateAsync(eventId)
+  }
+
+  const formatEventDates = (event: Event) => {
+    if (!event.start_date && !event.end_date) return null
+    if (event.start_date && event.end_date) {
+      return `${format(new Date(event.start_date), 'MMM d')} - ${format(new Date(event.end_date), 'MMM d, yyyy')}`
+    }
+    if (event.start_date) {
+      return `Starts ${format(new Date(event.start_date), 'MMM d, yyyy')}`
+    }
+    return null
+  }
+
+  const isLoading = loadingPending || loadingAccepted
+
+  return (
+    <div className="min-h-screen bg-background">
+      <header className="border-b">
+        <div className="container mx-auto flex h-14 items-center justify-between px-4">
+          <div className="flex items-center gap-2">
+            <span className="text-lg font-semibold">Event Manager</span>
+            <Badge variant="outline">{platformRole?.city?.name || 'Admin'}</Badge>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="icon" onClick={() => setSettingsOpen(true)}>
+              <Gear className="size-5" />
+            </Button>
+            <Button variant="ghost" size="icon" onClick={handleSignOut}>
+              <SignOut className="size-5" />
+            </Button>
+          </div>
+        </div>
+      </header>
+
+      <main className="container mx-auto px-4 py-8 space-y-10">
+        {/* Pending Event Invites */}
+        {pendingEvents && pendingEvents.length > 0 && (
+          <section>
+            <div className="flex items-center gap-2 mb-4">
+              <Envelope className="size-5" />
+              <h2 className="text-xl font-bold">Pending Invites</h2>
+              <Badge>{pendingEvents.length}</Badge>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {pendingEvents.map((event) => (
+                <Card key={event.id} className="rounded-none border-primary/30 border-2">
+                  <CardHeader>
+                    <div className="flex items-center gap-3">
+                      <div className="flex size-10 items-center justify-center rounded-none border bg-muted text-xl">
+                        {event.icon || '🎉'}
+                      </div>
+                      <div className="space-y-1 flex-1">
+                        <CardTitle className="text-lg">{event.name}</CardTitle>
+                        {formatEventDates(event) && (
+                          <CardDescription>{formatEventDates(event)}</CardDescription>
+                        )}
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="flex gap-2">
+                    <Button
+                      onClick={(e) => handleAccept(event.id, e)}
+                      disabled={acceptEvent.isPending}
+                      className="flex-1 gap-2"
+                    >
+                      <Check className="size-4" />
+                      Accept
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={(e) => handleIgnore(event.id, e)}
+                      disabled={ignoreEvent.isPending}
+                      className="flex-1 gap-2"
+                    >
+                      <X className="size-4" />
+                      Ignore
+                    </Button>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* My Events (Accepted) */}
+        <section>
+          <div className="flex items-center gap-2 mb-4">
+            <CheckCircle className="size-5" />
+            <h2 className="text-xl font-bold">My Events</h2>
+          </div>
+
+          {isLoading ? (
+            <div className="flex justify-center py-12">
+              <div className="size-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+            </div>
+          ) : !acceptedEvents || acceptedEvents.length === 0 ? (
+            <div className="flex flex-col items-center justify-center rounded-none border border-dashed py-12">
+              <div className="flex size-12 items-center justify-center rounded-full bg-muted text-2xl">
+                📭
+              </div>
+              <h3 className="mt-4 font-semibold">No events yet</h3>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Accept event invites to start managing them here.
+              </p>
+            </div>
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {acceptedEvents.map((event) => (
+                <Card
+                  key={event.id}
+                  className="group cursor-pointer transition-colors hover:bg-muted/50 rounded-none"
+                  onClick={() => handleEventSelect(event)}
+                >
+                  <CardHeader>
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="flex size-10 items-center justify-center rounded-none border bg-muted text-xl">
+                          {event.icon || '🎉'}
+                        </div>
+                        <div className="space-y-1">
+                          <CardTitle className="text-lg">{event.name}</CardTitle>
+                          {formatEventDates(event) && (
+                            <CardDescription>{formatEventDates(event)}</CardDescription>
+                          )}
+                        </div>
+                      </div>
+                      <ArrowRight className="size-5 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+                    </div>
+                  </CardHeader>
+                </Card>
+              ))}
+            </div>
+          )}
+        </section>
+
+        {/* Ignored Events */}
+        {ignoredEvents && ignoredEvents.length > 0 && (
+          <section>
             <button
-              onClick={() => setShowArchived(!showArchived)}
+              onClick={() => setShowIgnored(!showIgnored)}
               className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors mb-4"
             >
-              {showArchived ? <CaretUp className="size-4" /> : <CaretDown className="size-4" />}
+              {showIgnored ? <CaretUp className="size-4" /> : <CaretDown className="size-4" />}
               <span className="text-sm font-medium">
-                Archived Events ({archivedEvents.length})
+                Ignored Events ({ignoredEvents.length})
               </span>
             </button>
 
-            {showArchived && (
+            {showIgnored && (
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {archivedEvents.map((event) => (
-                  <Card
-                    key={event.id}
-                    className="group rounded-none opacity-60 hover:opacity-100 transition-opacity"
-                  >
+                {ignoredEvents.map((event) => (
+                  <Card key={event.id} className="rounded-none opacity-60 hover:opacity-100 transition-opacity">
                     <CardHeader>
                       <div className="flex items-start justify-between">
                         <div className="flex items-center gap-3">
@@ -229,69 +486,74 @@ export default function HomePage() {
                             )}
                           </div>
                         </div>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                            <Button variant="ghost" size="icon-sm">
-                              <DotsThree className="size-4" weight="bold" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={(e) => handleRestore(event.id, e)}>
-                              <ArrowCounterClockwise className="size-4 mr-2" />
-                              Restore
-                            </DropdownMenuItem>
-                            {canDelete && (
-                              <>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    setDeleteEventId(event.id)
-                                  }}
-                                  className="text-destructive focus:text-destructive"
-                                >
-                                  <Trash className="size-4 mr-2" />
-                                  Delete Permanently
-                                </DropdownMenuItem>
-                              </>
-                            )}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                        <Button
+                          variant="outline"
+                          size="icon-sm"
+                          onClick={(e) => handleRestore(event.id, e)}
+                          disabled={restoreEvent.isPending}
+                        >
+                          <ArrowCounterClockwise className="size-4" />
+                        </Button>
                       </div>
                     </CardHeader>
                   </Card>
                 ))}
               </div>
             )}
-          </div>
+          </section>
         )}
       </main>
 
-      <CreateEventDialog open={createEventOpen} onOpenChange={setCreateEventOpen} />
       <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
-
-      {/* Delete Confirmation Dialog */}
-      <AlertDialog open={!!deleteEventId} onOpenChange={(open) => !open && setDeleteEventId(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete Event Permanently?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the event
-              and all associated data including calendar entries, tasks, and team members.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDelete}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   )
 }
 
+// ============================================
+// REGULAR USER VIEW (no platform role)
+// ============================================
+function RegularUserView() {
+  const router = useRouter()
+  const setCurrentEventId = useAppStore((state) => state.setCurrentEventId)
+  const [settingsOpen, setSettingsOpen] = useState(false)
+
+  const handleSignOut = async () => {
+    const supabase = createClient()
+    await supabase.auth.signOut()
+    router.push('/login')
+    router.refresh()
+  }
+
+  return (
+    <div className="min-h-screen bg-background">
+      <header className="border-b">
+        <div className="container mx-auto flex h-14 items-center justify-between px-4">
+          <span className="text-lg font-semibold">Event Manager</span>
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="icon" onClick={() => setSettingsOpen(true)}>
+              <Gear className="size-5" />
+            </Button>
+            <Button variant="ghost" size="icon" onClick={handleSignOut}>
+              <SignOut className="size-5" />
+            </Button>
+          </div>
+        </div>
+      </header>
+
+      <main className="container mx-auto px-4 py-8">
+        <div className="flex flex-col items-center justify-center py-16">
+          <div className="flex size-16 items-center justify-center rounded-full bg-muted text-3xl">
+            👋
+          </div>
+          <h1 className="mt-4 text-xl font-semibold">Welcome to Event Manager</h1>
+          <p className="mt-2 text-sm text-muted-foreground text-center max-w-md">
+            You don't have a platform role assigned yet.
+            Contact your organization admin to get access.
+          </p>
+        </div>
+      </main>
+
+      <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
+    </div>
+  )
+}

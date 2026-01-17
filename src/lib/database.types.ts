@@ -344,6 +344,12 @@ export type Database = {
           start_date: string | null
           updated_at: string
           venue: string | null
+          // Event distribution fields
+          is_template: boolean
+          parent_event_id: string | null
+          instance_status: 'pending' | 'accepted' | 'ignored' | null
+          accepted_at: string | null
+          accepted_by: string | null
         }
         Insert: {
           archived_at?: string | null
@@ -358,6 +364,11 @@ export type Database = {
           start_date?: string | null
           updated_at?: string
           venue?: string | null
+          is_template?: boolean
+          parent_event_id?: string | null
+          instance_status?: 'pending' | 'accepted' | 'ignored' | null
+          accepted_at?: string | null
+          accepted_by?: string | null
         }
         Update: {
           archived_at?: string | null
@@ -372,6 +383,11 @@ export type Database = {
           start_date?: string | null
           updated_at?: string
           venue?: string | null
+          is_template?: boolean
+          parent_event_id?: string | null
+          instance_status?: 'pending' | 'accepted' | 'ignored' | null
+          accepted_at?: string | null
+          accepted_by?: string | null
         }
         Relationships: [
           {
