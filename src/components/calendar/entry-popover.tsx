@@ -32,6 +32,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { useCalendars } from '@/hooks/use-calendars'
 import type { CalendarEvent, CalendarEventInsert } from '@/lib/database.types'
 import { parseCalendarEventTime } from '@/lib/calendar-utils'
+import { VideoCamera, UsersThree } from '@phosphor-icons/react'
 
 interface EntryPopoverProps {
   open: boolean
@@ -67,17 +68,19 @@ export function EntryPopover({
   const [isAllDay, setIsAllDay] = useState(false)
   const [calendarId, setCalendarId] = useState<string | null>(null)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [addMeetLink, setAddMeetLink] = useState(false)
+  const [guests, setGuests] = useState('')
 
   const { data: calendars = [] } = useCalendars(eventId)
 
   // Populate form when editing or creating
   useEffect(() => {
     if (!open) return // Only run when popover is open
-    
+
     if (event) {
       const start = parseCalendarEventTime(event.start_time)
       const end = parseCalendarEventTime(event.end_time)
-      
+
       setTitle(event.title)
       setDescription(event.description || '')
       setLocation(event.location || '')
@@ -87,20 +90,22 @@ export function EntryPopover({
       setEndTime(format(end, 'HH:mm'))
       setIsAllDay(event.is_all_day || false)
       setCalendarId(event.calendar_id || null)
+      setAddMeetLink(!!event.google_meet_link)
+      setGuests('') // Guests not stored locally yet
     } else if (defaultDate) {
       // Use defaultEndDate if provided, otherwise add 1 hour to start
       const endDateTime = defaultEndDate || addHours(defaultDate, 1)
-      
+
       // Find the default calendar
       const defaultCalendar = calendars.find(cal => cal.is_default)
-      
+
       // Check if this is an all-day event (times are 00:00 to 23:59)
-      const isAllDayEvent = 
-        defaultDate.getHours() === 0 && 
-        defaultDate.getMinutes() === 0 && 
-        endDateTime.getHours() === 23 && 
+      const isAllDayEvent =
+        defaultDate.getHours() === 0 &&
+        defaultDate.getMinutes() === 0 &&
+        endDateTime.getHours() === 23 &&
         endDateTime.getMinutes() === 59
-      
+
       setTitle('')
       setDescription('')
       setLocation('')
@@ -110,17 +115,19 @@ export function EntryPopover({
       setEndTime(format(endDateTime, 'HH:mm'))
       setIsAllDay(isAllDayEvent)
       setCalendarId(defaultCalendar?.id || null)
+      setAddMeetLink(false)
+      setGuests('')
     }
   }, [event, defaultDate, defaultEndDate, open, calendars])
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     // For all-day events, set time to midnight/end of day
     // For regular events, use the time inputs
     let start: Date
     let end: Date
-    
+
     if (isAllDay) {
       start = new Date(`${startDate}T00:00:00`)
       end = new Date(`${endDate}T23:59:59`)
@@ -128,7 +135,7 @@ export function EntryPopover({
       start = new Date(`${startDate}T${startTime}:00`)
       end = new Date(`${endDate}T${endTime}:00`)
     }
-    
+
     // Validate that dates are valid
     if (isNaN(start.getTime()) || isNaN(end.getTime())) {
       return
@@ -138,7 +145,7 @@ export function EntryPopover({
     if (end <= start) {
       return
     }
-    
+
     // Ensure calendar_id is set (use default if not selected)
     const finalCalendarId = calendarId || calendars.find(cal => cal.is_default)?.id || calendars[0]?.id || null
 
@@ -165,7 +172,7 @@ export function EntryPopover({
         calendar_id: finalCalendarId,
       })
     }
-    
+
     onOpenChange(false)
   }
 
@@ -181,19 +188,19 @@ export function EntryPopover({
     <>
       <Popover open={open} onOpenChange={onOpenChange}>
         <PopoverTrigger asChild>
-          <span 
+          <span
             className="absolute"
-            style={position ? { 
-              left: position.x, 
+            style={position ? {
+              left: position.x,
               top: position.y,
               width: 0,
               height: 0,
             } : undefined}
           />
         </PopoverTrigger>
-        <PopoverContent 
-          className="w-80" 
-          align="start" 
+        <PopoverContent
+          className="w-80"
+          align="start"
           side="right"
           sideOffset={8}
         >
@@ -309,6 +316,42 @@ export function EntryPopover({
                 placeholder="Room, area, etc."
                 maxLength={200}
               />
+            </div>
+
+            {/* Google Meet Toggle */}
+            <div className="flex items-center space-x-2 py-2 px-3 rounded-md bg-muted/50 border">
+              <VideoCamera className="size-5 text-blue-500" weight="fill" />
+              <div className="flex-1">
+                <Label
+                  htmlFor="addMeet"
+                  className="text-sm font-normal cursor-pointer"
+                >
+                  Add Google Meet
+                </Label>
+              </div>
+              <Checkbox
+                id="addMeet"
+                checked={addMeetLink}
+                onCheckedChange={(checked) => setAddMeetLink(checked === true)}
+              />
+            </div>
+
+            {/* Guests Input */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <UsersThree className="size-4 text-muted-foreground" />
+                <Label htmlFor="guests">Add guests</Label>
+              </div>
+              <Input
+                id="guests"
+                value={guests}
+                onChange={(e) => setGuests(e.target.value)}
+                placeholder="email@example.com, another@example.com"
+                maxLength={500}
+              />
+              <p className="text-xs text-muted-foreground">
+                Separate multiple emails with commas
+              </p>
             </div>
 
             <div className="space-y-2">

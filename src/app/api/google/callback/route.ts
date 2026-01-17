@@ -10,15 +10,19 @@ export async function GET(request: NextRequest) {
     const state = searchParams.get('state') // User ID passed from auth route
     const error = searchParams.get('error')
 
+    // Get the current event page URL from referer, or default to home
+    const eventUrl = searchParams.get('redirect') || '/'
+
     if (error) {
+        console.error('Google OAuth error:', error)
         return NextResponse.redirect(
-            new URL(`/settings?error=${encodeURIComponent('Google authorization was denied')}`, request.url)
+            new URL(`/?google_error=${encodeURIComponent('Google authorization was denied')}`, request.url)
         )
     }
 
     if (!code || !state) {
         return NextResponse.redirect(
-            new URL('/settings?error=Invalid callback parameters', request.url)
+            new URL('/?google_error=Invalid callback parameters', request.url)
         )
     }
 
@@ -32,9 +36,13 @@ export async function GET(request: NextRequest) {
     const clientSecret = process.env.GOOGLE_CLIENT_SECRET
     const redirectUri = `${process.env.NEXT_PUBLIC_APP_URL || request.nextUrl.origin}/api/google/callback`
 
+    console.log('Google OAuth callback - exchanging code for tokens...')
+    console.log('Redirect URI:', redirectUri)
+    console.log('Client ID:', clientId?.substring(0, 20) + '...')
+
     if (!clientId || !clientSecret) {
         return NextResponse.redirect(
-            new URL('/settings?error=Google OAuth not configured', request.url)
+            new URL('/?google_error=Google OAuth not configured', request.url)
         )
     }
 
@@ -54,15 +62,17 @@ export async function GET(request: NextRequest) {
             }),
         })
 
+        const responseText = await tokenResponse.text()
+
         if (!tokenResponse.ok) {
-            const errorData = await tokenResponse.text()
-            console.error('Token exchange failed:', errorData)
+            console.error('Token exchange failed:', responseText)
             return NextResponse.redirect(
-                new URL('/settings?error=Failed to get access token', request.url)
+                new URL(`/?google_error=${encodeURIComponent('Failed to get access token: ' + responseText)}`, request.url)
             )
         }
 
-        const tokens = await tokenResponse.json()
+        const tokens = JSON.parse(responseText)
+        console.log('Token exchange successful!')
 
         // Calculate token expiry
         const tokenExpiry = new Date()
@@ -84,8 +94,7 @@ export async function GET(request: NextRequest) {
             calendarId = calendarData.id || 'primary'
         }
 
-        // Upsert credentials in database using Supabase client without type checking
-        // (the table was just added and types may not be regenerated yet)
+        // Upsert credentials in database
         const { error: dbError } = await (supabase as any)
             .from('google_credentials')
             .upsert({
@@ -102,17 +111,18 @@ export async function GET(request: NextRequest) {
         if (dbError) {
             console.error('Database error saving credentials:', dbError)
             return NextResponse.redirect(
-                new URL('/settings?error=Failed to save credentials', request.url)
+                new URL('/?google_error=Failed to save credentials', request.url)
             )
         }
 
+        console.log('Google Calendar connected successfully for user:', user.id)
         return NextResponse.redirect(
-            new URL('/settings?success=Google Calendar connected successfully', request.url)
+            new URL('/?google_success=Google Calendar connected!', request.url)
         )
     } catch (err) {
         console.error('Google OAuth callback error:', err)
         return NextResponse.redirect(
-            new URL('/settings?error=An error occurred during authorization', request.url)
+            new URL('/?google_error=An error occurred during authorization', request.url)
         )
     }
 }

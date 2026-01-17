@@ -111,15 +111,16 @@ async function refreshAccessToken(
 }
 
 // Get Google credentials for a user
-export async function getGoogleCredentials(userId: string): Promise<GoogleCredentials | null> {
-    const supabase = createClient()
-    const { data, error } = await (supabase as any)
+export async function getGoogleCredentials(userId: string, supabaseClient?: any): Promise<GoogleCredentials | null> {
+    const db = supabaseClient || createClient()
+    const { data, error } = await (db as any)
         .from('google_credentials')
         .select('*')
         .eq('user_id', userId)
         .single()
 
     if (error || !data) {
+        console.log('getGoogleCredentials error:', error?.message || 'No data found')
         return null
     }
 
@@ -137,9 +138,10 @@ export async function createGoogleCalendarEvent(
         end_time: string
         is_all_day?: boolean
         add_meet_link?: boolean
-    }
+    },
+    supabaseClient?: any
 ): Promise<GoogleCalendarEvent | null> {
-    const credentials = await getGoogleCredentials(userId)
+    const credentials = await getGoogleCredentials(userId, supabaseClient)
     if (!credentials) {
         console.error('No Google credentials found for user')
         return null
@@ -275,9 +277,10 @@ export async function updateGoogleCalendarEvent(
 // Delete a Google Calendar event
 export async function deleteGoogleCalendarEvent(
     userId: string,
-    googleEventId: string
+    googleEventId: string,
+    supabaseClient?: any
 ): Promise<boolean> {
-    const credentials = await getGoogleCredentials(userId)
+    const credentials = await getGoogleCredentials(userId, supabaseClient)
     if (!credentials) return false
 
     const accessToken = await refreshAccessToken(userId, credentials)
@@ -310,9 +313,10 @@ export async function fetchGoogleCalendarEvents(
         timeMin?: string
         timeMax?: string
         maxResults?: number
-    }
+    },
+    supabaseClient?: any
 ): Promise<GoogleCalendarEvent[]> {
-    const credentials = await getGoogleCredentials(userId)
+    const credentials = await getGoogleCredentials(userId, supabaseClient)
     if (!credentials) return []
 
     const accessToken = await refreshAccessToken(userId, credentials)
@@ -369,7 +373,8 @@ export interface SyncResult {
 
 export async function syncCalendarEvents(
     userId: string,
-    eventId: string
+    eventId: string,
+    supabase?: any  // Optional - if not provided, use client
 ): Promise<SyncResult> {
     const result: SyncResult = {
         pushedToGoogle: 0,
@@ -378,13 +383,16 @@ export async function syncCalendarEvents(
         errors: [],
     }
 
-    const supabase = createClient()
+    // Use provided supabase or create client
+    const db = supabase || createClient()
 
     // Get all local calendar events for this event
-    const { data: localEvents, error: localError } = await supabase
+    const { data: localEvents, error: localError } = await db
         .from('calendar_events')
         .select('*')
         .eq('event_id', eventId)
+
+    console.log('Local events found:', localEvents?.length || 0, localEvents?.map((e: any) => ({ title: e.title, google_event_id: e.google_event_id })))
 
     if (localError) {
         result.errors.push(`Failed to fetch local events: ${localError.message}`)
@@ -401,7 +409,9 @@ export async function syncCalendarEvents(
         timeMin: timeMin.toISOString(),
         timeMax: timeMax.toISOString(),
         maxResults: 250,
-    })
+    }, db)
+
+    console.log('Google events fetched:', googleEvents.length)
 
     // Create maps for comparison
     const googleEventMap = new Map<string, GoogleCalendarEvent>()
@@ -409,7 +419,9 @@ export async function syncCalendarEvents(
 
     // Push local events to Google that don't have a Google ID
     for (const local of localEvents || []) {
+        console.log('Processing local event:', local.title, 'google_event_id:', local.google_event_id)
         if (!local.google_event_id) {
+            console.log('Attempting to create event in Google Calendar...')
             const created = await createGoogleCalendarEvent(userId, {
                 title: local.title,
                 description: local.description ?? undefined,
@@ -417,11 +429,12 @@ export async function syncCalendarEvents(
                 start_time: local.start_time,
                 end_time: local.end_time,
                 is_all_day: local.is_all_day,
-            })
+                add_meet_link: true,  // Enable Meet links by default
+            }, db)
 
             if (created) {
                 // Update local event with Google ID
-                await supabase
+                await db
                     .from('calendar_events')
                     .update({
                         google_event_id: created.id,
@@ -447,7 +460,7 @@ export async function syncCalendarEvents(
                 result.conflicts++
                 if (googleUpdated > localUpdated) {
                     // Google wins - pull changes
-                    await supabase
+                    await db
                         .from('calendar_events')
                         .update({
                             title: googleEvent.summary,
@@ -473,7 +486,7 @@ export async function syncCalendarEvents(
                         is_all_day: local.is_all_day,
                     })
                     if (updated) {
-                        await supabase
+                        await db
                             .from('calendar_events')
                             .update({
                                 synced_at: new Date().toISOString(),
@@ -494,7 +507,7 @@ export async function syncCalendarEvents(
                     is_all_day: local.is_all_day,
                 })
                 if (updated) {
-                    await supabase
+                    await db
                         .from('calendar_events')
                         .update({
                             synced_at: new Date().toISOString(),
@@ -505,7 +518,7 @@ export async function syncCalendarEvents(
                 }
             } else if (googleUpdated > lastSynced) {
                 // Only Google updated - pull from Google
-                await supabase
+                await db
                     .from('calendar_events')
                     .update({
                         title: googleEvent.summary,
@@ -524,15 +537,50 @@ export async function syncCalendarEvents(
         }
     }
 
+    // ============================================
+    // PULL: Create local events from Google events that don't exist locally
+    // ============================================
+    const localGoogleIds = new Set((localEvents || []).map((e: any) => e.google_event_id).filter(Boolean))
+
+    for (const googleEvent of googleEvents) {
+        if (!localGoogleIds.has(googleEvent.id)) {
+            // This Google event doesn't exist locally - create it
+            console.log('Pulling new event from Google:', googleEvent.summary)
+            const { error: insertError } = await db
+                .from('calendar_events')
+                .insert({
+                    event_id: eventId,
+                    title: googleEvent.summary || 'Untitled Event',
+                    description: googleEvent.description || null,
+                    location: googleEvent.location || null,
+                    start_time: googleEvent.start.dateTime || `${googleEvent.start.date}T00:00:00Z`,
+                    end_time: googleEvent.end.dateTime || `${googleEvent.end.date}T23:59:59Z`,
+                    is_all_day: !!googleEvent.start.date,
+                    google_event_id: googleEvent.id,
+                    google_meet_link: extractMeetLink(googleEvent),
+                    synced_at: new Date().toISOString(),
+                    google_updated_at: googleEvent.updated,
+                })
+
+            if (insertError) {
+                console.error('Failed to insert Google event locally:', insertError)
+                result.errors.push(`Failed to pull event: ${googleEvent.summary}`)
+            } else {
+                result.pulledFromGoogle++
+            }
+        }
+    }
+
     return result
 }
 
 // Add Google Meet link to an existing local event
 export async function addMeetLinkToEvent(
     userId: string,
-    calendarEventId: string
+    calendarEventId: string,
+    supabaseClient?: any
 ): Promise<string | null> {
-    const supabase = createClient()
+    const supabase = supabaseClient || createClient()
 
     // Get the local event
     const { data: event, error } = await supabase
@@ -563,7 +611,7 @@ export async function addMeetLinkToEvent(
         end_time: event.end_time,
         is_all_day: event.is_all_day,
         add_meet_link: true,
-    })
+    }, supabase)
 
     if (!googleEvent) {
         return null

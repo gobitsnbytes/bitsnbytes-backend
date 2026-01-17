@@ -31,7 +31,9 @@ export async function POST(request: NextRequest) {
         }
 
         // Perform the sync
-        const result = await syncCalendarEvents(user.id, eventId)
+        console.log(`Starting sync for user ${user.id}, event ${eventId}`)
+        const result = await syncCalendarEvents(user.id, eventId, supabase)
+        console.log('Sync result:', JSON.stringify(result, null, 2))
 
         return NextResponse.json({
             success: true,

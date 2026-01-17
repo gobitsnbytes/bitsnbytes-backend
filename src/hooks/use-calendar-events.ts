@@ -8,7 +8,7 @@ export function useCalendarEvents(eventId: string | null) {
     queryKey: ['calendar-events', eventId],
     queryFn: async () => {
       if (!eventId) return []
-      
+
       const supabase = createClient()
       const { data, error } = await supabase
         .from('calendar_events')
@@ -34,7 +34,7 @@ export function useCalendarEventsInRange(
     queryKey: ['calendar-events', eventId, startDate.toISOString(), endDate.toISOString()],
     queryFn: async () => {
       if (!eventId) return []
-      
+
       const supabase = createClient()
       const { data, error } = await supabase
         .from('calendar_events')
@@ -54,7 +54,7 @@ export function useCalendarEventsInRange(
 // Create calendar event
 export function useCreateCalendarEvent() {
   const queryClient = useQueryClient()
-  
+
   return useMutation({
     mutationFn: async (calendarEvent: CalendarEventInsert) => {
       const supabase = createClient()
@@ -76,12 +76,12 @@ export function useCreateCalendarEvent() {
 // Update calendar event
 export function useUpdateCalendarEvent() {
   const queryClient = useQueryClient()
-  
+
   return useMutation({
-    mutationFn: async ({ 
-      id, 
-      eventId, 
-      ...updates 
+    mutationFn: async ({
+      id,
+      eventId,
+      ...updates
     }: { id: string; eventId: string } & CalendarEventUpdate) => {
       const supabase = createClient()
       const { data, error } = await supabase
@@ -104,7 +104,7 @@ export function useUpdateCalendarEvent() {
       // Optimistically update
       queryClient.setQueryData(['calendar-events', eventId], (old: CalendarEvent[] | undefined) => {
         if (!old) return old
-        return old.map(event => 
+        return old.map(event =>
           event.id === id ? { ...event, ...updates } : event
         )
       })
@@ -123,19 +123,24 @@ export function useUpdateCalendarEvent() {
   })
 }
 
-// Delete calendar event
+// Delete calendar event (also deletes from Google if synced)
 export function useDeleteCalendarEvent() {
   const queryClient = useQueryClient()
-  
+
   return useMutation({
     mutationFn: async ({ id, eventId }: { id: string; eventId: string }) => {
-      const supabase = createClient()
-      const { error } = await supabase
-        .from('calendar_events')
-        .delete()
-        .eq('id', id)
+      // Use API to delete so it also removes from Google Calendar
+      const response = await fetch('/api/calendar-events/delete', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ calendarEventId: id }),
+      })
 
-      if (error) throw error
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to delete event')
+      }
+
       return { id, eventId }
     },
     onSuccess: (_data, variables) => {
