@@ -39,6 +39,10 @@ export interface GoogleCalendarEvent {
         }>
     }
     updated?: string
+    attendees?: Array<{
+        email: string
+        responseStatus?: string
+    }>
 }
 
 export interface GoogleCredentials {
@@ -138,6 +142,7 @@ export async function createGoogleCalendarEvent(
         end_time: string
         is_all_day?: boolean
         add_meet_link?: boolean
+        attendees?: string[]
     },
     supabaseClient?: any
 ): Promise<GoogleCalendarEvent | null> {
@@ -167,9 +172,8 @@ export async function createGoogleCalendarEvent(
         end: event.is_all_day
             ? { date: endDate.toISOString().split('T')[0] }
             : { dateTime: endDate.toISOString() },
+        attendees: event.attendees?.map(email => ({ email })),
     }
-
-    // Add Google Meet conference data if requested
     if (event.add_meet_link) {
         googleEvent.conferenceData = {
             createRequest: {
@@ -219,6 +223,7 @@ export async function updateGoogleCalendarEvent(
         start_time?: string
         end_time?: string
         is_all_day?: boolean
+        attendees?: string[]
     }
 ): Promise<GoogleCalendarEvent | null> {
     const credentials = await getGoogleCredentials(userId)
@@ -247,6 +252,10 @@ export async function updateGoogleCalendarEvent(
         patchData.end = updates.is_all_day
             ? { date: endDate.toISOString().split('T')[0] }
             : { dateTime: endDate.toISOString() }
+    }
+
+    if (updates.attendees) {
+        patchData.attendees = updates.attendees.map(email => ({ email }))
     }
 
     try {
@@ -429,7 +438,8 @@ export async function syncCalendarEvents(
                 start_time: local.start_time,
                 end_time: local.end_time,
                 is_all_day: local.is_all_day,
-                add_meet_link: true,  // Enable Meet links by default
+                add_meet_link: local.google_meet_link === 'PENDING',
+                attendees: Array.isArray(local.attendees) ? local.attendees.map(String) : [],
             }, db)
 
             if (created) {
@@ -472,6 +482,7 @@ export async function syncCalendarEvents(
                             google_meet_link: extractMeetLink(googleEvent),
                             synced_at: new Date().toISOString(),
                             google_updated_at: googleEvent.updated,
+                            attendees: googleEvent.attendees?.map(a => a.email) || [],
                         })
                         .eq('id', local.id)
                     result.pulledFromGoogle++
@@ -484,6 +495,7 @@ export async function syncCalendarEvents(
                         start_time: local.start_time,
                         end_time: local.end_time,
                         is_all_day: local.is_all_day,
+                        attendees: Array.isArray(local.attendees) ? local.attendees.map(String) : [],
                     })
                     if (updated) {
                         await db
@@ -505,6 +517,7 @@ export async function syncCalendarEvents(
                     start_time: local.start_time,
                     end_time: local.end_time,
                     is_all_day: local.is_all_day,
+                    attendees: Array.isArray(local.attendees) ? local.attendees.map(String) : [],
                 })
                 if (updated) {
                     await db
@@ -530,6 +543,7 @@ export async function syncCalendarEvents(
                         google_meet_link: extractMeetLink(googleEvent),
                         synced_at: new Date().toISOString(),
                         google_updated_at: googleEvent.updated,
+                        attendees: googleEvent.attendees?.map(a => a.email) || [],
                     })
                     .eq('id', local.id)
                 result.pulledFromGoogle++
@@ -560,6 +574,7 @@ export async function syncCalendarEvents(
                     google_meet_link: extractMeetLink(googleEvent),
                     synced_at: new Date().toISOString(),
                     google_updated_at: googleEvent.updated,
+                    attendees: googleEvent.attendees?.map(a => a.email) || [],
                 })
 
             if (insertError) {

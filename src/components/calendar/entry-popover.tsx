@@ -33,6 +33,7 @@ import { useCalendars } from '@/hooks/use-calendars'
 import type { CalendarEvent, CalendarEventInsert } from '@/lib/database.types'
 import { parseCalendarEventTime } from '@/lib/calendar-utils'
 import { VideoCamera, UsersThree } from '@phosphor-icons/react'
+import { GuestSelector } from './guest-selector'
 
 interface EntryPopoverProps {
   open: boolean
@@ -69,7 +70,7 @@ export function EntryPopover({
   const [calendarId, setCalendarId] = useState<string | null>(null)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [addMeetLink, setAddMeetLink] = useState(false)
-  const [guests, setGuests] = useState('')
+  const [guests, setGuests] = useState<string[]>([])
 
   const { data: calendars = [] } = useCalendars(eventId)
 
@@ -91,7 +92,12 @@ export function EntryPopover({
       setIsAllDay(event.is_all_day || false)
       setCalendarId(event.calendar_id || null)
       setAddMeetLink(!!event.google_meet_link)
-      setGuests('') // Guests not stored locally yet
+
+      let eventGuests: string[] = []
+      if (Array.isArray(event.attendees)) {
+        eventGuests = event.attendees.map(a => String(a))
+      }
+      setGuests(eventGuests)
     } else if (defaultDate) {
       // Use defaultEndDate if provided, otherwise add 1 hour to start
       const endDateTime = defaultEndDate || addHours(defaultDate, 1)
@@ -116,7 +122,7 @@ export function EntryPopover({
       setIsAllDay(isAllDayEvent)
       setCalendarId(defaultCalendar?.id || null)
       setAddMeetLink(false)
-      setGuests('')
+      setGuests([])
     }
   }, [event, defaultDate, defaultEndDate, open, calendars])
 
@@ -159,6 +165,8 @@ export function EntryPopover({
         end_time: end.toISOString(),
         is_all_day: isAllDay,
         calendar_id: finalCalendarId,
+        attendees: guests,
+        google_meet_link: addMeetLink ? (event.google_meet_link || 'PENDING') : null,
       })
     } else {
       onSave({
@@ -170,6 +178,8 @@ export function EntryPopover({
         end_time: end.toISOString(),
         is_all_day: isAllDay,
         calendar_id: finalCalendarId,
+        attendees: guests,
+        google_meet_link: addMeetLink ? 'PENDING' : null,
       })
     }
 
@@ -342,16 +352,7 @@ export function EntryPopover({
                 <UsersThree className="size-4 text-muted-foreground" />
                 <Label htmlFor="guests">Add guests</Label>
               </div>
-              <Input
-                id="guests"
-                value={guests}
-                onChange={(e) => setGuests(e.target.value)}
-                placeholder="email@example.com, another@example.com"
-                maxLength={500}
-              />
-              <p className="text-xs text-muted-foreground">
-                Separate multiple emails with commas
-              </p>
+              <GuestSelector value={guests} onValueChange={setGuests} />
             </div>
 
             <div className="space-y-2">

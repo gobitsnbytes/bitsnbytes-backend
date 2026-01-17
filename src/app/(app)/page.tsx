@@ -193,7 +193,7 @@ function SudoDashboard() {
             <div className="size-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
           </div>
         ) : !events || events.length === 0 ? (
-          <div className="flex flex-col items-center justify-center rounded-none border border-dashed py-16">
+          <div className="flex flex-col items-center justify-center rounded-lg border border-dashed py-16">
             <div className="flex size-16 items-center justify-center rounded-full bg-muted text-3xl">
               🎉
             </div>
@@ -211,13 +211,13 @@ function SudoDashboard() {
             {events.map((event) => (
               <Card
                 key={event.id}
-                className="group cursor-pointer transition-colors hover:bg-muted/50 rounded-none"
+                className="group cursor-pointer transition-all hover:shadow-md"
                 onClick={() => handleEventSelect(event)}
               >
                 <CardHeader>
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="flex size-10 items-center justify-center rounded-none border bg-muted text-xl">
+                      <div className="flex size-10 items-center justify-center rounded-lg border bg-muted text-xl">
                         {event.icon || '🎉'}
                       </div>
                       <div className="space-y-1">
@@ -230,9 +230,9 @@ function SudoDashboard() {
                     <div className="flex items-center gap-1">
                       <Button
                         variant="outline"
-                        size="icon-sm"
+                        size="sm"
                         onClick={(e) => handleOpenPushDialog(event.id, e)}
-                        className="opacity-0 group-hover:opacity-100"
+                        className="opacity-0 group-hover:opacity-100 h-8 w-8 p-0"
                       >
                         <PaperPlaneTilt className="size-4" />
                       </Button>
@@ -263,7 +263,7 @@ function SudoDashboard() {
             {cities?.map((city) => (
               <label
                 key={city.id}
-                className="flex items-center gap-3 p-3 border rounded-none cursor-pointer hover:bg-muted/50"
+                className="flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:bg-muted/50"
               >
                 <Checkbox
                   checked={selectedCities.includes(city.id)}
@@ -379,7 +379,7 @@ function CityAdminDashboard() {
             </div>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {pendingEvents.map((event) => (
-                <Card key={event.id} className="rounded-none border-primary/30 border-2">
+                <Card key={event.id} className="border-primary/20 hover:border-primary/50 transition-colors">
                   <CardHeader>
                     <div className="flex items-center gap-3">
                       <div className="flex size-10 items-center justify-center rounded-none border bg-muted text-xl">
@@ -430,7 +430,7 @@ function CityAdminDashboard() {
               <div className="size-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
             </div>
           ) : !acceptedEvents || acceptedEvents.length === 0 ? (
-            <div className="flex flex-col items-center justify-center rounded-none border border-dashed py-12">
+            <div className="flex flex-col items-center justify-center rounded-lg border border-dashed py-12">
               <div className="flex size-12 items-center justify-center rounded-full bg-muted text-2xl">
                 📭
               </div>
@@ -444,13 +444,13 @@ function CityAdminDashboard() {
               {acceptedEvents.map((event) => (
                 <Card
                   key={event.id}
-                  className="group cursor-pointer transition-colors hover:bg-muted/50 rounded-none"
+                  className="group cursor-pointer transition-all hover:shadow-md"
                   onClick={() => handleEventSelect(event)}
                 >
                   <CardHeader>
                     <div className="flex items-start justify-between">
                       <div className="flex items-center gap-3">
-                        <div className="flex size-10 items-center justify-center rounded-none border bg-muted text-xl">
+                        <div className="flex size-10 items-center justify-center rounded-lg border bg-muted text-xl">
                           {event.icon || '🎉'}
                         </div>
                         <div className="space-y-1">
@@ -501,9 +501,10 @@ function CityAdminDashboard() {
                         </div>
                         <Button
                           variant="outline"
-                          size="icon-sm"
+                          size="sm"
                           onClick={(e) => handleRestore(event.id, e)}
                           disabled={restoreEvent.isPending}
+                          className="h-8 w-8 p-0"
                         >
                           <ArrowCounterClockwise className="size-4" />
                         </Button>

@@ -31,6 +31,7 @@ export type Database = {
           synced_at: string | null
           title: string
           updated_at: string
+          attendees: Json | null
         }
         Insert: {
           calendar_id?: string | null
@@ -48,6 +49,7 @@ export type Database = {
           synced_at?: string | null
           title: string
           updated_at?: string
+          attendees?: Json | null
         }
         Update: {
           calendar_id?: string | null
@@ -56,7 +58,6 @@ export type Database = {
           end_time?: string
           event_id?: string
           google_event_id?: string | null
-          google_meet_link?: string | null
           google_updated_at?: string | null
           id?: string
           is_all_day?: boolean
@@ -65,6 +66,7 @@ export type Database = {
           synced_at?: string | null
           title?: string
           updated_at?: string
+          attendees?: Json | null
         }
         Relationships: [
           {
