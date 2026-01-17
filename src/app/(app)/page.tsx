@@ -29,6 +29,7 @@ import {
   Buildings,
   Envelope,
   CheckCircle,
+  UsersThree,
 } from '@phosphor-icons/react'
 import { Button } from '@/components/ui/button'
 import { Card, CardDescription, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
@@ -44,6 +45,7 @@ import {
 import { Checkbox } from '@/components/ui/checkbox'
 import { CreateEventDialog } from '@/components/create-event-dialog'
 import { SettingsDialog } from '@/components/settings-dialog'
+import { AdminPanelDialog } from '@/components/admin-panel-dialog'
 import { createClient } from '@/lib/supabase/client'
 import { format } from 'date-fns'
 import type { Event } from '@/lib/database.types'
@@ -92,6 +94,7 @@ function SudoDashboard() {
   const setCurrentEventId = useAppStore((state) => state.setCurrentEventId)
   const [createEventOpen, setCreateEventOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [adminPanelOpen, setAdminPanelOpen] = useState(false)
   const [pushDialogOpen, setPushDialogOpen] = useState(false)
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null)
   const [selectedCities, setSelectedCities] = useState<string[]>([])
@@ -154,6 +157,10 @@ function SudoDashboard() {
             <Badge variant="secondary">Sudo</Badge>
           </div>
           <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => setAdminPanelOpen(true)} className="gap-2">
+              <UsersThree className="size-4" />
+              Manage
+            </Button>
             <Button variant="ghost" size="icon" onClick={() => setSettingsOpen(true)}>
               <Gear className="size-5" />
             </Button>
@@ -236,6 +243,7 @@ function SudoDashboard() {
 
       <CreateEventDialog open={createEventOpen} onOpenChange={setCreateEventOpen} />
       <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
+      <AdminPanelDialog open={adminPanelOpen} onOpenChange={setAdminPanelOpen} />
 
       {/* Push to Cities Dialog */}
       <Dialog open={pushDialogOpen} onOpenChange={setPushDialogOpen}>
