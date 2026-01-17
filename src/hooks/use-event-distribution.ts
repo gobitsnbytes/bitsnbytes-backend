@@ -102,13 +102,19 @@ export function usePushEventToCities() {
         }) => {
             const supabase = createClient()
 
+            console.log('Calling push_event_to_cities with:', { eventId, cityIds })
+
             // Call the database function to push event to cities
             const { data, error } = await (supabase.rpc as any)('push_event_to_cities', {
                 template_event_id: eventId,
                 target_city_ids: cityIds,
             })
 
-            if (error) throw error
+            if (error) {
+                console.error('RPC error details:', JSON.stringify(error, null, 2))
+                throw error
+            }
+            console.log('Push result:', data)
             return data as Event[]
         },
         onSuccess: (_, variables) => {
