@@ -120,13 +120,18 @@ function SudoDashboard() {
 
   const handlePush = async () => {
     if (!selectedEventId || selectedCities.length === 0) return
-    await pushToCities.mutateAsync({
-      eventId: selectedEventId,
-      cityIds: selectedCities,
-    })
-    setPushDialogOpen(false)
-    setSelectedEventId(null)
-    setSelectedCities([])
+    try {
+      await pushToCities.mutateAsync({
+        eventId: selectedEventId,
+        cityIds: selectedCities,
+      })
+      setPushDialogOpen(false)
+      setSelectedEventId(null)
+      setSelectedCities([])
+    } catch (error) {
+      console.error('Failed to push event:', error)
+      // TODO: Show error toast
+    }
   }
 
   const toggleCity = (cityId: string) => {

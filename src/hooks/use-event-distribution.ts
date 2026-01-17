@@ -20,15 +20,28 @@ export function useTemplateEvents() {
         queryKey: ['template-events'],
         queryFn: async () => {
             const supabase = createClient()
-            const { data, error } = await supabase
-                .from('events')
-                .select('*')
-                .eq('is_template', true)
-                .is('archived_at', null)
-                .order('created_at', { ascending: false })
 
-            if (error) throw error
-            return data as Event[]
+            try {
+                // Try with is_template filter
+                const { data, error } = await supabase
+                    .from('events')
+                    .select('*')
+                    .eq('is_template', true)
+                    .is('archived_at', null)
+                    .order('created_at', { ascending: false })
+
+                if (error) throw error
+                return data as Event[]
+            } catch (err) {
+                console.error('useTemplateEvents error, falling back:', err)
+                // Fallback: just get all non-archived events
+                const { data } = await supabase
+                    .from('events')
+                    .select('*')
+                    .is('archived_at', null)
+                    .order('created_at', { ascending: false })
+                return (data || []) as Event[]
+            }
         },
     })
 }
