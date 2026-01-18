@@ -14,6 +14,7 @@ import {
   useIgnoreEvent,
   useRestoreIgnoredEvent,
 } from '@/hooks/use-event-distribution'
+import { useCurrentUser } from '@/hooks/use-user'
 import { useAppStore } from '@/lib/store'
 import {
   Plus,
@@ -88,6 +89,7 @@ export default function HomePage() {
 // ============================================
 function SudoDashboard() {
   const router = useRouter()
+  const { data: user } = useCurrentUser()
   const { data: events, isLoading } = useTemplateEvents()
   const { data: cities } = useCities()
   const pushToCities = usePushEventToCities()
@@ -162,6 +164,11 @@ function SudoDashboard() {
             <Badge variant="secondary">Sudo</Badge>
           </div>
           <div className="flex items-center gap-2">
+            {user && (
+              <span className="text-sm text-muted-foreground mr-2 hidden sm:inline-block">
+                {user.display_name || user.email}
+              </span>
+            )}
             <Button variant="outline" size="sm" onClick={() => setAdminPanelOpen(true)} className="gap-2">
               <UsersThree className="size-4" />
               Manage
@@ -298,6 +305,7 @@ function SudoDashboard() {
 // ============================================
 function CityAdminDashboard() {
   const router = useRouter()
+  const { data: user } = useCurrentUser()
   const { data: platformRole } = usePlatformRole()
   const { data: pendingEvents, isLoading: loadingPending } = usePendingEvents()
   const { data: acceptedEvents, isLoading: loadingAccepted } = useAcceptedEvents()
@@ -358,6 +366,11 @@ function CityAdminDashboard() {
             <Badge variant="outline">{platformRole?.city?.name || 'Admin'}</Badge>
           </div>
           <div className="flex items-center gap-2">
+            {user && (
+              <span className="text-sm text-muted-foreground mr-2 hidden sm:inline-block">
+                {user.display_name || user.email}
+              </span>
+            )}
             <Button variant="ghost" size="icon" onClick={() => setSettingsOpen(true)}>
               <Gear className="size-5" />
             </Button>
@@ -382,7 +395,7 @@ function CityAdminDashboard() {
                 <Card key={event.id} className="border-primary/20 hover:border-primary/50 transition-colors">
                   <CardHeader>
                     <div className="flex items-center gap-3">
-                      <div className="flex size-10 items-center justify-center rounded-none border bg-muted text-xl">
+                      <div className="flex size-10 items-center justify-center rounded-lg border bg-muted text-xl">
                         {event.icon || '🎉'}
                       </div>
                       <div className="space-y-1 flex-1">
@@ -485,11 +498,11 @@ function CityAdminDashboard() {
             {showIgnored && (
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {ignoredEvents.map((event) => (
-                  <Card key={event.id} className="rounded-none opacity-60 hover:opacity-100 transition-opacity">
+                  <Card key={event.id} className="opacity-60 hover:opacity-100 transition-opacity">
                     <CardHeader>
                       <div className="flex items-start justify-between">
                         <div className="flex items-center gap-3">
-                          <div className="flex size-10 items-center justify-center rounded-none border bg-muted text-xl grayscale">
+                          <div className="flex size-10 items-center justify-center rounded-lg border bg-muted text-xl grayscale">
                             {event.icon || '🎉'}
                           </div>
                           <div className="space-y-1">
@@ -528,6 +541,7 @@ function CityAdminDashboard() {
 // ============================================
 function RegularUserView() {
   const router = useRouter()
+  const { data: user } = useCurrentUser()
   const setCurrentEventId = useAppStore((state) => state.setCurrentEventId)
   const [settingsOpen, setSettingsOpen] = useState(false)
 
@@ -544,6 +558,11 @@ function RegularUserView() {
         <div className="container mx-auto flex h-14 items-center justify-between px-4">
           <span className="text-lg font-semibold">Event Manager</span>
           <div className="flex items-center gap-2">
+            {user && (
+              <span className="text-sm text-muted-foreground mr-2 hidden sm:inline-block">
+                {user.display_name || user.email}
+              </span>
+            )}
             <Button variant="ghost" size="icon" onClick={() => setSettingsOpen(true)}>
               <Gear className="size-5" />
             </Button>
